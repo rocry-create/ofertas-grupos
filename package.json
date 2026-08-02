@@ -1,0 +1,31 @@
+{
+  "name": "offer-whatsapp-platform",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "@prisma/client": "^5.22.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "zod": "^3.23.8",
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "tsx": "^4.19.1",
+    "prisma": "^5.22.0",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/cors": "^2.8.17"
+  }
+}

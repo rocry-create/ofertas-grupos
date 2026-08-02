@@ -1,0 +1,79 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("ADMIN")
+  createdAt DateTime @default(now())
+}
+
+model WhatsappGroup {
+  id           String   @id @default(uuid())
+  name         String
+  groupJid     String
+  instanceName String
+  niche        String?
+  active       Boolean  @default(true)
+  dailyLimit   Int      @default(5)
+  createdAt    DateTime @default(now())
+}
+
+model Product {
+  id             String   @id @default(uuid())
+  externalId     String
+  marketplace    String
+  name           String
+  category       String?
+  currentPrice   Float
+  previousPrice  Float?
+  imageUrl       String?
+  originalUrl    String
+  affiliateUrl   String?
+  isTest         Boolean  @default(true)
+  fingerprint    String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  priceHistory   PriceHistory[]
+  offers         Offer[]
+}
+
+model PriceHistory {
+  id          String   @id @default(uuid())
+  productId   String
+  price       Float
+  collectedAt DateTime @default(now())
+  product     Product  @relation(fields: [productId], references: [id])
+}
+
+model Offer {
+  id           String        @id @default(uuid())
+  productId    String
+  discountPct  Float
+  status       String        @default("PENDING")
+  approved     Boolean       @default(false)
+  messageText  String?
+  createdAt    DateTime      @default(now())
+  product      Product       @relation(fields: [productId], references: [id])
+  publications Publication[]
+}
+
+model Publication {
+  id           String    @id @default(uuid())
+  offerId      String
+  groupId      String
+  status       String    @default("PENDING")
+  attempts     Int       @default(0)
+  errorMessage String?
+  sentAt       DateTime?
+  createdAt    DateTime  @default(now())
+  offer        Offer     @relation(fields: [offerId], references: [id])
+}

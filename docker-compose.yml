@@ -1,0 +1,50 @@
+services:
+  ofertas-postgres:
+    image: postgres:16-alpine
+    container_name: ofertas_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ofertas_postgres_data:/var/lib/postgresql/data
+    networks:
+      - ofertas_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ofertas-redis:
+    image: redis:7-alpine
+    container_name: ofertas_redis
+    restart: unless-stopped
+    volumes:
+      - ofertas_redis_data:/data
+    networks:
+      - ofertas_net
+
+  ofertas-backend:
+    build: .
+    container_name: ofertas_backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@ofertas-postgres:5432/${POSTGRES_DB}
+    depends_on:
+      ofertas-postgres:
+        condition: service_healthy
+    networks:
+      - ofertas_net
+      - crm_zapseller
+
+volumes:
+  ofertas_postgres_data:
+  ofertas_redis_data:
+
+networks:
+  ofertas_net:
+  crm_zapseller:
+    external: true
