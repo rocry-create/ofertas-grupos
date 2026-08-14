@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ofertas Grupos - Painel</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: #0f1115; color: #e6e6e6; }
+  #login-screen { display: flex; align-items: center; justify-content: center; height: 100vh; }
+  .login-box { background: #1a1d23; padding: 40px; border-radius: 12px; width: 320px; }
+  .login-box h1 { font-size: 20px; margin-bottom: 20px; text-align: center; }
+  input { width: 100%; padding: 10px; margin-bottom: 12px; border-radius: 6px; border: 1px solid #333; background: #0f1115; color: #fff; }
+  button { cursor: pointer; border: none; border-radius: 6px; padding: 10px 16px; font-weight: 600; }
+  .btn-primary { background: #22c55e; color: #06210f; width: 100%; }
+  .btn-primary:hover { background: #16a34a; }
+  #app { display: none; }
+  header { background: #1a1d23; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a2d35; }
+  header h1 { font-size: 18px; }
+  header button { background: #2a2d35; color: #fff; }
+  nav { display: flex; gap: 8px; padding: 16px 24px; background: #14161b; }
+  nav button { background: #1a1d23; color: #aaa; }
+  nav button.active { background: #22c55e; color: #06210f; }
+  main { padding: 24px; max-width: 1100px; margin: 0 auto; }
+  .toolbar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .toolbar button { background: #22c55e; color: #06210f; }
+  .toolbar button.secondary { background: #2a2d35; color: #fff; }
+  table { width: 100%; border-collapse: collapse; background: #1a1d23; border-radius: 8px; overflow: hidden; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #2a2d35; font-size: 14px; }
+  th { background: #14161b; color: #999; font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  .badge { padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+  .badge-pending { background: #3a2f00; color: #fbbf24; }
+  .badge-approved { background: #0f3a1e; color: #4ade80; }
+  .badge-rejected { background: #3a0f0f; color: #f87171; }
+  .badge-sent { background: #0f3a1e; color: #4ade80; }
+  .badge-failed { background: #3a0f0f; color: #f87171; }
+  .badge-queued { background: #1e2a3a; color: #60a5fa; }
+  .row-actions button { margin-right: 6px; font-size: 12px; padding: 6px 10px; }
+  .btn-approve { background: #22c55e; color: #06210f; }
+  .btn-reject { background: #ef4444; color: #fff; }
+  .btn-send { background: #3b82f6; color: #fff; }
+  .empty { text-align: center; padding: 40px; color: #666; }
+  .msg { padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 14px; }
+  .msg-error { background: #3a0f0f; color: #f87171; }
+  .msg-success { background: #0f3a1e; color: #4ade80; }
+  .safemode { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; background: #3a2f00; color: #fbbf24; margin-left: 10px; }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-box">
+    <h1>Ofertas Grupos - Login</h1>
+    <div id="login-msg"></div>
+    <input type="email" id="login-email" placeholder="Email" value="admin@allcepts.com">
+    <input type="password" id="login-password" placeholder="Senha">
+    <button class="btn-primary" onclick="doLogin()">Entrar</button>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <h1>Ofertas Grupos <span id="safemode-badge" class="safemode" style="display:none;">SAFE_MODE</span></h1>
+    <button onclick="doLogout()">Sair</button>
+  </header>
+  <nav>
+    <button id="nav-products" onclick="showTab('products')">Produtos</button>
+    <button id="nav-offers" onclick="showTab('offers')">Ofertas</button>
+    <button id="nav-groups" onclick="showTab('groups')">Grupos</button>
+    <button id="nav-publications" onclick="showTab('publications')">Publicações</button>
+  </nav>
+  <main>
+    <div id="global-msg"></div>
+
+    <div id="tab-products" class="tab">
+      <div class="toolbar">
+        <button onclick="importTestProducts()">Importar produtos de teste</button>
+        <button class="secondary" onclick="loadProducts()">Atualizar lista</button>
+      </div>
+      <table>
+        <thead><tr><th>Nome</th><th>Categoria</th><th>Preço Atual</th><th>Preço Anterior</th></tr></thead>
+        <tbody id="products-tbody"></tbody>
+      </table>
+    </div>
+
+    <div id="tab-offers" class="tab" style="display:none;">
+      <div class="toolbar">
+        <button onclick="generateOffers()">Gerar ofertas automaticamente</button>
+        <button class="secondary" onclick="loadOffers()">Atualizar lista</button>
+      </div>
+      <table>
+        <thead><tr><th>Produto</th><th>Desconto</th><th>Status</th><th>Ações</th></tr></thead>
+        <tbody id="offers-tbody"></tbody>
+      </table>
+    </div>
+
+    <div id="tab-groups" class="tab" style="display:none;">
+      <div class="toolbar">
+        <button onclick="loadAvailableGroups()">Buscar grupos reais do WhatsApp</button>
+        <button class="secondary" onclick="loadGroups()">Atualizar lista salvos</button>
+      </div>
+      <div id="available-groups-box"></div>
+      <table>
+        <thead><tr><th>Nome</th><th>Nicho</th><th>Limite Diário</th><th>Ativo</th></tr></thead>
+        <tbody id="groups-tbody"></tbody>
+      </table>
+    </div>
+
+    <div id="tab-publications" class="tab" style="display:none;">
+      <div class="toolbar">
+        <button class="secondary" onclick="loadPublications()">Atualizar lista</button>
+      </div>
+      <table>
+        <thead><tr><th>Produto</th><th>Grupo</th><th>Status</th><th>Enviado em</th></tr></thead>
+        <tbody id="publications-tbody"></tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<script>
+const API = '/api';
+let TOKEN = localStorage.getItem('ofertas_token') || '';
+let groupsCache = [];
+
+function showMsg(text, type) {
+  const el = document.getElementById('global-msg');
+  el.innerHTML = '<div class="msg msg-' + type + '">' + text + '</div>';
+  setTimeout(() => { el.innerHTML = ''; }, 4000);
+}
+
+async function api(path, options = {}) {
+  const res = await fetch(API + path, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + TOKEN,
+      ...(options.headers || {}),
+    },
+  });
+  if (res.status === 401) {
+    doLogout();
+    throw new Error('Sessão expirada');
+  }
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Erro na requisição');
+  return data;
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value;
+  const password = document.getElementById('login-password').value;
+  const msgEl = document.getElementById('login-msg');
+  try {
+    const res = await fetch(API + '/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Erro ao entrar');
+    TOKEN = data.access_token;
+    localStorage.setItem('ofertas_token', TOKEN);
+    startApp();
+  } catch (e) {
+    msgEl.innerHTML = '<div class="msg msg-error">' + e.message + '</div>';
+  }
+}
+
+function doLogout() {
+  TOKEN = '';
+  localStorage.removeItem('ofertas_token');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+function startApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  checkHealth();
+  showTab('products');
+}
+
+async function checkHealth() {
+  try {
+    const res = await fetch(API + '/health');
+    const data = await res.json();
+    document.getElementById('safemode-badge').style.display = data.safeMode ? 'inline-block' : 'none';
+  } catch (e) {}
+}
+
+function showTab(tab) {
+  document.querySelectorAll('.tab').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + tab).style.display = 'block';
+  document.getElementById('nav-' + tab).classList.add('active');
+  if (tab === 'products') loadProducts();
+  if (tab === 'offers') loadOffers();
+  if (tab === 'groups') loadGroups();
+  if (tab === 'publications') loadPublications();
+}
+
+function money(v) {
+  if (v === null || v === undefined) return '-';
+  return 'R$ ' + Number(v).toFixed(2).replace('.', ',');
+}
+
+function fmtDate(v) {
+  if (!v) return '-';
+  return new Date(v).toLocaleString('pt-BR');
+}
+
+// ---- PRODUTOS ----
+async function loadProducts() {
+  const tbody = document.getElementById('products-tbody');
+  tbody.innerHTML = '<tr><td colspan="4" class="empty">Carregando...</td></tr>';
+  try {
+    const products = await api('/products');
+    if (products.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty">Nenhum produto ainda. Clique em "Importar produtos de teste".</td></tr>';
+      return;
+    }
+    tbody.innerHTML = products.map(p => `
+      <tr>
+        <td>${p.name}</td>
+        <td>${p.category || '-'}</td>
+        <td>${money(p.currentPrice)}</td>
+        <td>${money(p.previousPrice)}</td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    showMsg(e.message, 'error');
+  }
+}
+
+async function importTestProducts() {
+  try {
+    const data = await api('/products/import-test', { method: 'POST', body: JSON.stringify({}) });
+    showMsg(data.imported + ' produtos importados com sucesso', 'success');
+    loadProducts();
+  } catch (e) {
+    showMsg(e.message, 'error');
+  }
+}
+
+// ---- OFERTAS ----
+async function loadOffers() {
+  const tbody = document.getElementById('offers-tbody');
+  tbody.innerHTML = '<tr><td colspan="4" class="empty">Carregando...</td></tr>';
+  try {
+    const offers = await api('/offers');
+    if (offers.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty">Nenhuma oferta ainda. Clique em "Gerar ofertas automaticamente".</td></tr>';
+      return;
+    }
+    tbody.innerHTML = offers.map(o => `
+      <tr>
+        <td>${o.product ? o.product.name : '-'}</td>
+        <td>${o.discountPct}%</td>
+        <td><span class="badge badge-${o.status.toLowerCase()}">${o.status}</span></td>
+        <td class="row-actions">
+          ${o.status === 'PENDING' ? `
+            <button class="btn-approve" onclick="approveOffer('${o.id}')">Aprovar</button>
+            <button class="btn-reject" onclick="rejectOffer('${o.id}')">Rejeitar</button>
+          ` : ''}
+          ${o.status === 'APPROVED' ? `<button class="btn-send" onclick="enqueueOffer('${o.id}')">Publicar</button>` : ''}
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    showMsg(e.message, 'error');
+  }
+}
+
+async function generateOffers() {
+  try {
+    const data = await api('/offers/generate', { method: 'POST', body: JSON.stringify({ minDiscountPct: 10 }) });
+    showMsg(data.generated + ' ofertas geradas', 'success');
+    loadOffers();
+  } catch (e) {
+    showMsg(e.message, 'error');
+  }
+}
+
+async function approveOffer(id) {
+  try {
+    await api('/offers/' + id + '/approve', { method: 'PATCH' });
+    showMsg('Oferta aprovada', 'success');
+    loadOffers();
+  } catch (e) {
+    showMsg(e.message, 'error');
+  }
+}
+
+async function rejectOffer(id) {
+  try {
+    await api('/offers/' + id + '/reject', { method: 'PATCH' });
+    showMsg('Oferta rejeitada', 'success');
+    loadOffers();
+  } catch (e) {
+    showMsg(e.message, 'error');
+  }
+}
+
+async function enqueueOffer(id) {
+  try {
+    const data = await api('/publications/' + id + '/enqueue', { method: 'POST', body: JSON.stringify({}) });
+    showMsg(data.enqueued + ' publicações enfileiradas', 'success');
+    loadOffers();
+  } catch (e) {
+    showMsg(e.message, 'error');
+  }
+}
+
+// ---- GRUPOS ----
+async function loadGroups() {
+  const tbody = document.getElementById('groups-tbody');
+  tbody.innerHTML = '<tr><td colspan="4" class="empty">Carregando...</td></tr>';
+  try {
+    const groups = await api('/groups');
+    groupsCache = groups;
+    if (groups.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty">Nenhum grupo salvo. Clique em "Buscar grupos reais do WhatsApp".</td></tr>';
+      return;
+    }
+    tbody.innerHTML = groups.map(g => `
+      <tr>
+        <td>${g.name}</td>
+        <td>${g.niche || '-'}</td>
+        <td>${g.dailyLimit}</td>
+        <td>${g.active ? 'Sim' : 'Não'}</td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    showMsg(e.message, 'error');
+  }
+}
+
+async function loadAvailableGroups() {
+  const box = document.getElementById('available-groups-box');
+  box.innerHTML = '<p>Buscando grupos no WhatsApp...</p>';
+  try {
+    const groups = await api('/groups/available');
+    if (!groups || groups.length === 0) {
+      box.innerHTML = '<p>Nenhum grupo encontrado.</p>';
+      return;
+    }
+    box.innerHTML = '<table><thead><tr><th>Nome</th><th>Ação</th></tr></thead><tbody>' +
+      groups.slice(0, 30).map(g => `
+        <tr>
+          <td>${g.subject || g.id}</td>
+          <td><button class="btn-approve" onclick='saveGroup(${JSON.stringify(g.id)}, ${JSON.stringify(g.subject || g.id)})'>Salvar</button></td>
+        </tr>
+      `).join('') + '</tbody></table>';
+  } catch (e) {
+    showMsg(e.message, 'error');
+    box.innerHTML = '';
+  }
+}
+
+async function saveGroup(groupJid, name) {
+  try {
+    await api('/groups', {
+      method: 'POST',
+      body: JSON.stringify({ name, groupJid, instanceName: 'mellcrm', niche: 'geral', dailyLimit: 5 }),
+    });
+    showMsg('Grupo salvo com sucesso', 'success');
+    loadGroups();
+  } catch (e) {
+    showMsg(e.message, 'error');
+  }
+}
+
+// ---- PUBLICAÇÕES ----
+async function loadPublications() {
+  const tbody = document.getElementById('publications-tbody');
+  tbody.innerHTML = '<tr><td colspan="4" class="empty">Carregando...</td></tr>';
+  try {
+    const pubs = await api('/publications');
+    if (pubs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty">Nenhuma publicação ainda.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = pubs.map(p => `
+      <tr>
+        <td>${p.offer && p.offer.product ? p.offer.product.name : '-'}</td>
+        <td>${p.groupId}</td>
+        <td><span class="badge badge-${p.status.toLowerCase()}">${p.status}</span></td>
+        <td>${fmtDate(p.sentAt)}</td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    showMsg(e.message, 'error');
+  }
+}
+
+// ---- INIT ----
+if (TOKEN) {
+  startApp();
+}
+</script>
+</body>
+</html>

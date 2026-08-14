@@ -40,6 +40,14 @@ services:
       - ofertas_net
       - crm_zapseller
 
+  ofertas-frontend:
+    build: ./frontend
+    container_name: ofertas_frontend
+    restart: unless-stopped
+    networks:
+      - ofertas_net
+      - crm_zapseller
+
 volumes:
   ofertas_postgres_data:
   ofertas_redis_data:
