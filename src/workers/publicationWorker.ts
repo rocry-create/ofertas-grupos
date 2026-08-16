@@ -29,7 +29,12 @@ async function processPublication(job: Job) {
     if (safeMode) {
       console.log(`[SAFE_MODE] Simulando envio para ${group.name} (${group.groupJid}): ${messageText.slice(0, 60)}...`);
     } else {
-      await evolutionService.sendText(group.groupJid, messageText);
+      const imageUrl = publication.offer.product.imageUrl;
+      if (imageUrl) {
+        await evolutionService.sendMedia(group.groupJid, imageUrl, messageText);
+      } else {
+        await evolutionService.sendText(group.groupJid, messageText);
+      }
     }
 
     await prisma.publication.update({

@@ -8,6 +8,8 @@ import groupsRoutes from './routes/groups';
 import productsRoutes from './routes/products';
 import offersRoutes from './routes/offers';
 import publicationsRoutes from './routes/publications';
+import settingsRoutes from './routes/settings';
+import marketplacesRoutes from './routes/marketplaces';
 import { startPublicationWorker } from './workers/publicationWorker';
 
 const app = express();
@@ -23,6 +25,8 @@ app.use('/api/groups', groupsRoutes);
 app.use('/api/products', productsRoutes);
 app.use('/api/offers', offersRoutes);
 app.use('/api/publications', publicationsRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/marketplaces', marketplacesRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

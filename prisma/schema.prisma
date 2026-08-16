@@ -77,3 +77,11 @@ model Publication {
   createdAt    DateTime  @default(now())
   offer        Offer     @relation(fields: [offerId], references: [id])
 }
+
+model Setting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}

@@ -90,4 +90,28 @@ router.delete('/:id', async (req, res) => {
   res.json({ success: true });
 });
 
+router.post('/quick/:productId', async (req, res) => {
+  const product = await prisma.product.findUnique({ where: { id: req.params.productId } });
+  if (!product) return res.status(404).json({ message: 'Produto nao encontrado' });
+
+  const discountPct =
+    product.previousPrice && product.previousPrice > product.currentPrice
+      ? Math.round(((product.previousPrice - product.currentPrice) / product.previousPrice) * 100)
+      : 0;
+
+  const messageText = buildMessage(product, discountPct);
+
+  const offer = await prisma.offer.create({
+    data: {
+      productId: product.id,
+      discountPct,
+      messageText,
+      status: 'APPROVED',
+      approved: true,
+    },
+  });
+
+  res.status(201).json(offer);
+});
+
 export default router;

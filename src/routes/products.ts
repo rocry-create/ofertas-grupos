@@ -96,4 +96,31 @@ router.delete('/:id', async (req, res) => {
   res.json({ success: true });
 });
 
+router.post('/manual', async (req, res) => {
+  const { name, marketplace, currentPrice, previousPrice, affiliateUrl, imageUrl } = req.body;
+  if (!name || !marketplace || currentPrice === undefined || !affiliateUrl) {
+    return res.status(400).json({ message: 'Preencha nome, marketplace, preco atual e link de afiliado' });
+  }
+  const externalId = crypto.randomUUID();
+  const fingerprint = makeFingerprint(marketplace, externalId);
+  const product = await prisma.product.create({
+    data: {
+      externalId,
+      marketplace,
+      name,
+      currentPrice: Number(currentPrice),
+      previousPrice: previousPrice !== undefined && previousPrice !== null ? Number(previousPrice) : null,
+      imageUrl: imageUrl || null,
+      originalUrl: affiliateUrl,
+      affiliateUrl,
+      isTest: false,
+      fingerprint,
+    },
+  });
+  await prisma.priceHistory.create({
+    data: { productId: product.id, price: product.currentPrice },
+  });
+  res.status(201).json(product);
+});
+
 export default router;
