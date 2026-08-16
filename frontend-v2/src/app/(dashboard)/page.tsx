@@ -86,7 +86,7 @@ function money(v: number) {
 export default function DashboardPage() {
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl bg-gradient-to-r from-orange-600 to-orange-500 px-7 py-6 text-white shadow-lg shadow-orange-500/20 flex items-center justify-between gap-6">
+      <div className="rounded-2xl bg-gradient-to-r from-orange-600 to-orange-500 px-5 py-6 md:px-7 text-white shadow-lg shadow-orange-500/20 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
         <div>
           <div className="flex items-center gap-2 text-orange-100 text-xs font-semibold uppercase tracking-wide mb-1">
             <Flame className="h-3.5 w-3.5" />
@@ -97,7 +97,7 @@ export default function DashboardPage() {
             Monitore milhares de produtos e publique ofertas nos seus grupos de WhatsApp automaticamente.
           </p>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex flex-col sm:flex-row gap-2 shrink-0">
           <Button className="bg-white text-orange-600 hover:bg-orange-50 shadow-sm">
             <Sparkles className="h-4 w-4" />
             Buscar Promoções

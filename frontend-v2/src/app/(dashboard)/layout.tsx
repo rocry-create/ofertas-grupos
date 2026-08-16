@@ -33,8 +33,8 @@ export default function DashboardGroupLayout({
   return (
     <>
       <Sidebar />
-      <main className="ml-64 min-h-screen">
-        <div className="max-w-[1400px] mx-auto px-10 py-10">{children}</div>
+      <main className="md:ml-64 min-h-screen pt-14 md:pt-0">
+        <div className="max-w-[1400px] mx-auto px-4 md:px-10 py-6 md:py-10">{children}</div>
       </main>
     </>
   );

@@ -128,7 +128,7 @@ export default function OfertasPage() {
       </div>
 
       <Card className="border-border">
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           {loading ? (
             <p className="text-sm text-muted-foreground p-6">Carregando...</p>
           ) : offers.length === 0 ? (
@@ -136,7 +136,7 @@ export default function OfertasPage() {
               Nenhuma oferta ainda. Clique em Gerar ofertas automaticamente.
             </p>
           ) : (
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[600px]">
               <thead>
                 <tr className="border-b border-border text-left text-muted-foreground">
                   <th className="p-4 font-medium">Produto</th>
