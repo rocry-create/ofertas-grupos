@@ -29,6 +29,18 @@ export const evolutionService = {
     const response = await client.post(`/message/sendText/${instance}`, { number, text });
     return response.data;
   },
+  async sendVideo(number: string, videoUrl: string, caption: string) {
+    const instance = process.env.EVOLUTION_INSTANCE_NAME;
+    const response = await client.post(`/message/sendMedia/${instance}`, {
+      number,
+      mediatype: 'video',
+      mimetype: 'video/mp4',
+      caption,
+      media: videoUrl,
+      fileName: 'produto.mp4',
+    });
+    return response.data;
+  },
 
   async connectionState() {
     const instance = process.env.EVOLUTION_INSTANCE_NAME;

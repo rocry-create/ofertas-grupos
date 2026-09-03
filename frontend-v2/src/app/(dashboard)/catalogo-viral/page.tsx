@@ -22,6 +22,16 @@ interface Product {
 
 const manualMarketplaces = ["SHEIN", "TEMU", "TIKTOK_SHOP", "OUTRA"];
 
+const filterChips = [
+  { key: "TODOS", label: "Inicio" },
+  { key: "TIKTOK_SHOP", label: "TikTok Shop" },
+  { key: "SHOPEE", label: "Shopee" },
+  { key: "MERCADO_LIVRE", label: "Mercado Livre" },
+  { key: "AMAZON", label: "Amazon" },
+  { key: "TEMU", label: "Temu" },
+  { key: "SHEIN", label: "Shein" },
+];
+
 function money(v: number | null) {
   if (v === null) return null;
   return "R$ " + v.toFixed(2).replace(".", ",");
@@ -38,6 +48,7 @@ export default function CatalogoViralPage() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
+  const [marketplaceFilter, setMarketplaceFilter] = useState("TODOS");
 
   const [form, setForm] = useState({
     name: "",
@@ -51,7 +62,8 @@ export default function CatalogoViralPage() {
   async function loadProducts() {
     setLoading(true);
     try {
-      const data = await apiFetch("/products");
+      const qs = marketplaceFilter !== "TODOS" ? `?marketplace=${marketplaceFilter}` : "";
+      const data = await apiFetch(`/products${qs}`);
       setProducts(data);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Erro ao carregar catalogo");
@@ -113,11 +125,12 @@ export default function CatalogoViralPage() {
 
   useEffect(() => {
     loadProducts();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marketplaceFilter]);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Sparkles className="h-6 w-6 text-primary" />
@@ -143,6 +156,54 @@ export default function CatalogoViralPage() {
           {msg}
         </div>
       )}
+
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+        {filterChips.map((m) => (
+          <button
+            key={m.key}
+            onClick={() => setMarketplaceFilter(m.key)}
+            className={`shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
+              marketplaceFilter === m.key
+                ? "bg-orange-500 border-orange-500 text-white"
+                : "border-border text-muted-foreground hover:bg-secondary"
+            }`}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+        {filterChips.map((m) => (
+          <button
+            key={m.key}
+            onClick={() => setMarketplaceFilter(m.key)}
+            className={`shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
+              marketplaceFilter === m.key
+                ? "bg-orange-500 border-orange-500 text-white"
+                : "border-border text-muted-foreground hover:bg-secondary"
+            }`}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+        {filterChips.map((m) => (
+          <button
+            key={m.key}
+            onClick={() => setMarketplaceFilter(m.key)}
+            className={`shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
+              marketplaceFilter === m.key
+                ? "bg-orange-500 border-orange-500 text-white"
+                : "border-border text-muted-foreground hover:bg-secondary"
+            }`}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
 
       {showForm && (
         <Card className="border-border">
@@ -219,7 +280,7 @@ export default function CatalogoViralPage() {
           Nenhum produto no catalogo ainda.
         </p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {products.map((p) => {
             const pct = discountPct(p.currentPrice, p.previousPrice);
             return (
@@ -227,8 +288,12 @@ export default function CatalogoViralPage() {
                 key={p.id}
                 className="border-border overflow-hidden py-0 shadow-sm hover:shadow-lg transition-shadow"
               >
-                {p.imageUrl && (
-                  <img src={p.imageUrl} alt={p.name} className="h-32 w-full object-cover" />
+                {p.imageUrl ? (
+                  <img src={p.imageUrl} alt={p.name} className="aspect-square w-full object-cover" />
+                ) : (
+                  <div className="aspect-square w-full bg-secondary flex items-center justify-center">
+                    <Sparkles className="h-8 w-8 text-muted-foreground" />
+                  </div>
                 )}
                 <CardContent className="px-4 py-3">
                   <p className="text-sm font-semibold truncate">{p.name}</p>

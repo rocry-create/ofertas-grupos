@@ -34,4 +34,13 @@ router.put('/:key', async (req, res) => {
   res.json({ key: setting.key, configured: !!setting.value });
 });
 
+router.delete('/:key', async (req, res) => {
+  try {
+    await prisma.setting.delete({ where: { key: req.params.key } });
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(404).json({ message: 'Chave nao encontrada' });
+  }
+});
+
 export default router;

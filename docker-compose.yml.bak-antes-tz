@@ -33,7 +33,6 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@ofertas-postgres:5432/${POSTGRES_DB}
-      TZ: America/Sao_Paulo
     depends_on:
       ofertas-postgres:
         condition: service_healthy

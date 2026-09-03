@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, RefreshCw, Search } from "lucide-react";
+import { MessageCircle, RefreshCw, Search, Power, Trash2 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 interface Group {
@@ -26,6 +26,7 @@ export default function WhatsappPage() {
   const [available, setAvailable] = useState<AvailableGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
 
   async function loadGroups() {
@@ -69,6 +70,44 @@ export default function WhatsappPage() {
       loadGroups();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Erro ao salvar grupo");
+    }
+  }
+
+  async function deleteGroup(group: Group) {
+    if (!confirm(`Excluir o grupo "${group.name}"? Isso nao apaga publicacoes ja enviadas.`)) return;
+    setTogglingId(group.id);
+    setMsg("");
+    try {
+      await apiFetch(`/groups/${group.id}`, { method: "DELETE" });
+      setMsg(`Grupo "${group.name}" excluido`);
+      loadGroups();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Erro ao excluir grupo");
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
+  async function toggleActive(group: Group) {
+    setTogglingId(group.id);
+    setMsg("");
+    const novoStatus = !group.active;
+    setGroups((prev) =>
+      prev.map((g) => (g.id === group.id ? { ...g, active: novoStatus } : g))
+    );
+    try {
+      await apiFetch(`/groups/${group.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ active: novoStatus }),
+      });
+      setMsg(`Grupo "${group.name}" ${novoStatus ? "ativado" : "desativado"} com sucesso`);
+    } catch (e) {
+      setGroups((prev) =>
+        prev.map((g) => (g.id === group.id ? { ...g, active: group.active } : g))
+      );
+      setMsg(e instanceof Error ? e.message : "Erro ao atualizar status do grupo");
+    } finally {
+      setTogglingId(null);
     }
   }
 
@@ -140,7 +179,7 @@ export default function WhatsappPage() {
               {groups.map((g) => (
                 <div
                   key={g.id}
-                  className="flex items-center justify-between border-b border-border pb-2 last:border-0"
+                  className="flex items-center justify-between border-b border-border pb-3 last:border-0"
                 >
                   <div>
                     <p className="text-sm font-medium">{g.name}</p>
@@ -148,9 +187,31 @@ export default function WhatsappPage() {
                       {g.niche || "sem nicho"} - limite {g.dailyLimit}/dia
                     </p>
                   </div>
-                  <Badge variant={g.active ? "default" : "secondary"}>
-                    {g.active ? "Ativo" : "Inativo"}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={g.active ? "default" : "secondary"}>
+                      {g.active ? "Ativo" : "Inativo"}
+                    </Badge>
+                    <Button
+                      size="sm"
+                      variant={g.active ? "outline" : "default"}
+                      onClick={() => toggleActive(g)}
+                      disabled={togglingId === g.id}
+                      className="h-7 text-xs px-3"
+                    >
+                      <Power className="h-3.5 w-3.5" />
+                      {togglingId === g.id ? "..." : g.active ? "Desativar" : "Ativar"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => deleteGroup(g)}
+                      disabled={togglingId === g.id}
+                      className="h-7 text-xs px-3"
+                      title="Excluir"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

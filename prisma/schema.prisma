@@ -36,8 +36,11 @@ model Product {
   currentPrice   Float
   previousPrice  Float?
   imageUrl       String?
+  videoUrl       String?
   originalUrl    String
   affiliateUrl   String?
+  commissionPct  Float?
+  commissionValue Float?
   isTest         Boolean  @default(true)
   fingerprint    String   @unique
   createdAt      DateTime @default(now())

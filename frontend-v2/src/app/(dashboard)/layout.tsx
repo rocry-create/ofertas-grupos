@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
+import { Topbar } from "@/components/topbar";
 import { getToken } from "@/lib/api";
 
 export default function DashboardGroupLayout({
@@ -12,6 +13,7 @@ export default function DashboardGroupLayout({
 }) {
   const router = useRouter();
   const [checked, setChecked] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     const token = getToken();
@@ -32,9 +34,10 @@ export default function DashboardGroupLayout({
 
   return (
     <>
-      <Sidebar />
-      <main className="md:ml-64 min-h-screen pt-14 md:pt-0">
-        <div className="max-w-[1400px] mx-auto px-4 md:px-10 py-6 md:py-10">{children}</div>
+      <Sidebar collapsed={collapsed} onToggleCollapse={() => setCollapsed(!collapsed)} />
+      <main className={collapsed ? "md:ml-16 min-h-screen pt-14 md:pt-0" : "md:ml-64 min-h-screen pt-14 md:pt-0"}>
+        <Topbar />
+        <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-6 md:py-8">{children}</div>
       </main>
     </>
   );

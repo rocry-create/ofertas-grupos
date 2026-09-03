@@ -29,8 +29,11 @@ async function processPublication(job: Job) {
     if (safeMode) {
       console.log(`[SAFE_MODE] Simulando envio para ${group.name} (${group.groupJid}): ${messageText.slice(0, 60)}...`);
     } else {
+      const videoUrl = publication.offer.product.videoUrl;
       const imageUrl = publication.offer.product.imageUrl;
-      if (imageUrl) {
+      if (videoUrl) {
+        await evolutionService.sendVideo(group.groupJid, videoUrl, messageText);
+      } else if (imageUrl) {
         await evolutionService.sendMedia(group.groupJid, imageUrl, messageText);
       } else {
         await evolutionService.sendText(group.groupJid, messageText);

@@ -1,211 +1,244 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+"use client";
+
+import { useEffect, useState } from "react";
 import {
   Package,
   Tag,
   Send,
   MessageCircle,
-  Flame,
+  Plus,
   Sparkles,
-  ArrowRight,
-  TrendingUp,
+  ExternalLink,
 } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  CartesianGrid,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import { apiFetch } from "@/lib/api";
 
-const stats = [
-  { label: "Produtos Monitorados", value: 128, delta: "+12 hoje", icon: Package, color: "bg-orange-500" },
-  { label: "Ofertas Encontradas", value: 34, delta: "+5 hoje", icon: Tag, color: "bg-rose-500" },
-  { label: "Publicações Realizadas", value: 21, delta: "+3 hoje", icon: Send, color: "bg-emerald-500" },
-  { label: "Grupos WhatsApp Ativos", value: 3, delta: "todos online", icon: MessageCircle, color: "bg-blue-500" },
-];
+interface DashboardStats {
+  totalProducts: number;
+  totalOffers: number;
+  totalPublicationsSent: number;
+  activeGroups: number;
+  offersByStatus: { status: string; _count: number }[];
+  productsByMarketplace: { marketplace: string; _count: number }[];
+  recentOffers: {
+    id: string;
+    discountPct: number;
+    status: string;
+    product: { name: string; marketplace: string; currentPrice: number; previousPrice: number | null } | null;
+  }[];
+  publicationsByDay: Record<string, number>;
+}
 
-const ofertas = [
-  {
-    nome: "Smart TV Samsung 50\" 4K",
-    marketplace: "Amazon",
-    precoAntigo: 3499,
-    precoAtual: 2299,
-    desconto: 34,
-    img: "electronics-tv",
-  },
-  {
-    nome: "Air Fryer 5L Digital",
-    marketplace: "Shopee",
-    precoAntigo: 299.9,
-    precoAtual: 189.9,
-    desconto: 37,
-    img: "kitchen-fryer",
-  },
-  {
-    nome: "Tênis Esportivo Runner",
-    marketplace: "Mercado Livre",
-    precoAntigo: 259.9,
-    precoAtual: 149.9,
-    desconto: 42,
-    img: "sneakers",
-  },
-  {
-    nome: "Perfume Importado 100ml",
-    marketplace: "AliExpress",
-    precoAntigo: 189.9,
-    precoAtual: 99.9,
-    desconto: 47,
-    img: "perfume",
-  },
-  {
-    nome: "Fone Bluetooth TWS",
-    marketplace: "Temu",
-    precoAntigo: 119.9,
-    precoAtual: 59.9,
-    desconto: 50,
-    img: "earbuds",
-  },
-  {
-    nome: "Mochila Notebook Impermeável",
-    marketplace: "Magalu",
-    precoAntigo: 159.9,
-    precoAtual: 89.9,
-    desconto: 44,
-    img: "backpack",
-  },
-];
-
-const marketplaces = [
-  { nome: "Shopee", emoji: "🛍️", ofertas: 42 },
-  { nome: "Mercado Livre", emoji: "🟡", ofertas: 31 },
-  { nome: "Amazon", emoji: "📦", ofertas: 18 },
-  { nome: "AliExpress", emoji: "🔶", ofertas: 24 },
-  { nome: "Magalu", emoji: "🏠", ofertas: 9 },
-  { nome: "Temu", emoji: "🧡", ofertas: 15 },
-  { nome: "Shein", emoji: "👗", ofertas: 6 },
-];
+const statusLabel: Record<string, string> = {
+  PENDING: "Pendente",
+  APPROVED: "Aprovada",
+  REJECTED: "Rejeitada",
+};
 
 function money(v: number) {
   return "R$ " + v.toFixed(2).replace(".", ",");
 }
 
 export default function DashboardPage() {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    apiFetch("/dashboard/stats")
+      .then(setStats)
+      .catch(() => setStats(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const statCards = stats
+    ? [
+        { label: "Produtos Monitorados", value: stats.totalProducts, icon: Package },
+        { label: "Ofertas Geradas", value: stats.totalOffers, icon: Tag },
+        { label: "Publicações Enviadas", value: stats.totalPublicationsSent, icon: Send },
+        { label: "Grupos WhatsApp Ativos", value: stats.activeGroups, icon: MessageCircle },
+      ]
+    : [];
+
+  const marketplaceData = stats?.productsByMarketplace.map((m) => ({
+    nome: m.marketplace,
+    valor: m._count,
+  })) || [];
+
+  const statusLabelMap: Record<string, string> = { PENDING: "Pendente", APPROVED: "Aprovada", REJECTED: "Rejeitada" };
+  const statusColorMap: Record<string, string> = { PENDING: "#94A3B8", APPROVED: "#22C55E", REJECTED: "#EF4444" };
+  const offersPieData = (stats?.offersByStatus || []).map((o) => ({
+    name: statusLabelMap[o.status] || o.status,
+    value: o._count,
+    color: statusColorMap[o.status] || "#94A3B8",
+  }));
+  const totalOffersCount = offersPieData.reduce((sum, o) => sum + o.value, 0);
+
+  const publicationsChartData = stats
+    ? Object.entries(stats.publicationsByDay)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([day, count]) => ({ d: day.slice(5).split("-").reverse().join("/"), v: count }))
+    : [];
+
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl bg-gradient-to-r from-orange-600 to-orange-500 px-5 py-6 md:px-7 text-white shadow-lg shadow-orange-500/20 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
-        <div>
-          <div className="flex items-center gap-2 text-orange-100 text-xs font-semibold uppercase tracking-wide mb-1">
-            <Flame className="h-3.5 w-3.5" />
-            Painel de Controle
+      <div className="relative overflow-hidden rounded-2xl bg-transparent px-5 py-6 md:px-7">
+        <div className="pointer-events-none absolute inset-0 opacity-60 dark:opacity-100" style={{ background: 'radial-gradient(ellipse 400px 250px at 85% 20%, rgba(249,115,22,0.18), transparent 70%)' }} />
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-500/30 bg-orange-500/10 text-orange-600 dark:text-orange-400 text-[11px] font-semibold uppercase tracking-wide px-3 py-1 mb-3">
+              <Sparkles className="h-3 w-3" />
+              Painel Inteligente
+            </span>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
+              Bem-vindo ao <span className="text-orange-500">Catálogo Viral Inteligente</span>
+            </h1>
+            <p className="text-muted-foreground text-sm max-w-xl mb-4">
+              Monitore produtos, identifique ofertas com alto desconto e publique automaticamente nos seus grupos de WhatsApp — tudo em um só lugar.
+            </p>
+            <div className="flex items-center gap-3">
+              <a href="/produtos" className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 transition-colors">
+                <Plus className="h-4 w-4" />
+                Ver Produtos
+              </a>
+              <a href="/catalogo-viral" className="inline-flex items-center gap-1.5 rounded-lg border border-border text-foreground text-sm font-medium px-4 py-2 hover:bg-secondary transition-colors">
+                <ExternalLink className="h-4 w-4" />
+                Ver Catálogo
+              </a>
+            </div>
           </div>
-          <h1 className="text-2xl font-bold mb-1">Bem-vindo ao Catálogo Viral Inteligente</h1>
-          <p className="text-orange-50 text-sm max-w-xl">
-            Monitore milhares de produtos e publique ofertas nos seus grupos de WhatsApp automaticamente.
-          </p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2 shrink-0">
-          <Button className="bg-white text-orange-600 hover:bg-orange-50 shadow-sm">
-            <Sparkles className="h-4 w-4" />
-            Buscar Promoções
-          </Button>
-          <Button variant="outline" className="border-white/40 bg-white/10 text-white hover:bg-white/20">
-            Ver Ofertas
-            <ArrowRight className="h-4 w-4" />
-          </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <Card
-              key={stat.label}
-              className="border-border shadow-sm hover:shadow-md transition-shadow duration-200 py-4"
-            >
-              <CardContent className="px-4">
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Carregando...</p>
+        ) : (
+          statCards.map((stat) => {
+            const Icon = stat.icon;
+            return (
+              <div key={stat.label} className="rounded-xl border border-border bg-card shadow-sm p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <div className={`h-9 w-9 rounded-lg ${stat.color} flex items-center justify-center`}>
+                  <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/20">
                     <Icon className="h-4.5 w-4.5 text-white" />
                   </div>
-                  <span className="text-xs text-muted-foreground">{stat.delta}</span>
                 </div>
-                <div className="text-2xl font-bold leading-tight">{stat.value}</div>
+                <div className="text-2xl font-bold leading-tight text-foreground">{stat.value}</div>
                 <div className="text-xs text-muted-foreground mt-0.5">{stat.label}</div>
-              </CardContent>
-            </Card>
-          );
-        })}
+              </div>
+            );
+          })
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2 font-semibold text-sm">
-              <Flame className="h-4 w-4 text-primary" />
-              Maiores Descontos
+        <div className="lg:col-span-2 space-y-5">
+          <div className="rounded-xl border border-border bg-card shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="font-semibold text-sm text-foreground">Últimas Ofertas Geradas</div>
+              <a href="/ofertas" className="text-xs text-orange-500 font-medium">Ver todas →</a>
             </div>
-            <a href="/ofertas" className="text-xs text-primary font-medium">
-              Ver todas
-            </a>
+            {!stats || stats.recentOffers.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">Nenhuma oferta gerada ainda.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-muted-foreground border-b border-border">
+                      <th className="pb-2 font-medium pr-3">Produto</th>
+                      <th className="pb-2 font-medium pr-3">Origem</th>
+                      <th className="pb-2 font-medium pr-3">Preço</th>
+                      <th className="pb-2 font-medium pr-3">Desconto</th>
+                      <th className="pb-2 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.recentOffers.map((o) => (
+                      <tr key={o.id} className="border-b border-border last:border-0">
+                        <td className="py-3 pr-3 font-medium text-foreground whitespace-nowrap max-w-[220px] truncate">{o.product?.name || "-"}</td>
+                        <td className="py-3 pr-3 text-muted-foreground whitespace-nowrap">{o.product?.marketplace || "-"}</td>
+                        <td className="py-3 pr-3 text-orange-500 font-semibold whitespace-nowrap">{o.product ? money(o.product.currentPrice) : "-"}</td>
+                        <td className="py-3 pr-3 whitespace-nowrap">{o.discountPct}%</td>
+                        <td className="py-3 whitespace-nowrap text-xs">{statusLabel[o.status] || o.status}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {ofertas.map((o) => (
-              <Card
-                key={o.nome}
-                className="border-border overflow-hidden py-0 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
-              >
-                <img
-                  src={`https://picsum.photos/seed/${o.img}/400/220`}
-                  alt={o.nome}
-                  className="h-32 w-full object-cover"
-                />
-                <CardContent className="px-4 py-3">
-                  <p className="text-sm font-semibold truncate">{o.nome}</p>
-                  <p className="text-xs text-muted-foreground mb-2">{o.marketplace}</p>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs text-muted-foreground line-through">
-                      {money(o.precoAntigo)}
-                    </span>
-                    <span className="text-base font-bold text-primary">
-                      {money(o.precoAtual)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
-                      {o.desconto}% OFF
-                    </span>
-                    <Button size="sm" className="h-7 text-xs px-3">
-                      Ver Oferta
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+
+          <div className="rounded-xl border border-border bg-card shadow-sm p-5">
+            <div className="text-sm font-semibold text-foreground mb-1">Publicações Enviadas (7 dias)</div>
+            <ResponsiveContainer width="100%" height={180}>
+              <LineChart data={publicationsChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="d" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} />
+                <YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} allowDecimals={false} />
+                <Line type="monotone" dataKey="v" stroke="#F97316" strokeWidth={2} dot={{ fill: "#F97316" }} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
-        <div>
-          <Card className="border-border shadow-sm">
-            <CardContent className="px-5 py-1">
-              <div className="flex items-center gap-2 font-semibold text-sm mb-4">
-                <TrendingUp className="h-4 w-4 text-primary" />
-                Por Marketplace
-              </div>
-              <div className="space-y-3">
-                {marketplaces.map((m) => (
-                  <div
-                    key={m.nome}
-                    className="flex items-center justify-between border-b border-border pb-2.5 last:border-0"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">{m.emoji}</span>
-                      <span className="text-sm">{m.nome}</span>
-                    </div>
-                    <span className="text-sm font-semibold">{m.ofertas}</span>
+        <div className="space-y-5">
+          <div className="rounded-xl border border-border bg-card shadow-sm p-5">
+            <div className="text-sm font-semibold text-foreground mb-4">Ofertas por Status</div>
+            {totalOffersCount === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">Nenhuma oferta gerada ainda.</p>
+            ) : (
+              <>
+                <div className="flex items-center justify-center relative">
+                  <ResponsiveContainer width="100%" height={180}>
+                    <PieChart>
+                      <Pie data={offersPieData} dataKey="value" innerRadius={50} outerRadius={72} paddingAngle={2}>
+                        {offersPieData.map((entry, i) => (
+                          <Cell key={i} fill={entry.color} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute text-center">
+                    <div className="text-lg font-bold text-foreground">{totalOffersCount}</div>
+                    <div className="text-[10px] text-muted-foreground">Total</div>
                   </div>
-                ))}
-              </div>
-              <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
-                <span className="text-xs text-muted-foreground">Desconto médio</span>
-                <span className="text-sm font-bold text-primary">42%</span>
-              </div>
-            </CardContent>
-          </Card>
+                </div>
+                <div className="space-y-1 mt-2">
+                  {offersPieData.map((o) => (
+                    <div key={o.name} className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full" style={{ background: o.color }} />
+                        <span className="text-foreground">{o.name}</span>
+                      </div>
+                      <span className="font-medium text-foreground">{o.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-border bg-card shadow-sm p-5">
+            <div className="text-sm font-semibold text-foreground mb-4">Produtos por Marketplace</div>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={marketplaceData} layout="vertical" margin={{ left: 10 }}>
+                <XAxis type="number" hide allowDecimals={false} />
+                <YAxis dataKey="nome" type="category" tick={{ fontSize: 11, fill: "var(--foreground)" }} width={90} />
+                <Bar dataKey="valor" fill="#F97316" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
     </div>

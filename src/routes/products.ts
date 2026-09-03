@@ -4,6 +4,36 @@ import crypto from 'crypto';
 import { authenticate } from '../middleware/auth';
 import { generateTestProducts } from '../providers/testProvider';
 
+function extractMeta(html: string, property: string): string | null {
+  const patterns = [
+    new RegExp(`<meta[^>]+property=["']${property}["'][^>]+content=["']([^"']+)["']`, 'i'),
+    new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+property=["']${property}["']`, 'i'),
+    new RegExp(`<meta[^>]+name=["']${property}["'][^>]+content=["']([^"']+)["']`, 'i'),
+  ];
+  for (const p of patterns) {
+    const match = html.match(p);
+    if (match) return match[1];
+  }
+  return null;
+}
+
+async function fetchLinkPreview(url: string) {
+  try {
+    const res = await fetch(url, {
+      redirect: 'follow',
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CatalogoViralBot/1.0)' },
+    });
+    const html = await res.text();
+    const title = extractMeta(html, 'og:title');
+    const image = extractMeta(html, 'og:image');
+    const priceRaw = extractMeta(html, 'product:price:amount') || extractMeta(html, 'og:price:amount');
+    const price = priceRaw ? Number(priceRaw.replace(',', '.')) : null;
+    return { title, image, price: price && !isNaN(price) ? price : null };
+  } catch {
+    return { title: null, image: null, price: null };
+  }
+}
+
 const prisma = new PrismaClient();
 const router = Router();
 router.use(authenticate);
@@ -91,9 +121,46 @@ router.patch('/:id', async (req, res) => {
 });
 
 router.delete('/:id', async (req, res) => {
-  await prisma.priceHistory.deleteMany({ where: { productId: req.params.id } });
-  await prisma.product.delete({ where: { id: req.params.id } });
-  res.json({ success: true });
+  try {
+    const offers = await prisma.offer.findMany({ where: { productId: req.params.id } });
+    const offerIds = offers.map((o) => o.id);
+    if (offerIds.length > 0) {
+      await prisma.publication.deleteMany({ where: { offerId: { in: offerIds } } });
+      await prisma.offer.deleteMany({ where: { productId: req.params.id } });
+    }
+    await prisma.priceHistory.deleteMany({ where: { productId: req.params.id } });
+    await prisma.product.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message || 'Erro ao excluir produto' });
+  }
+});
+
+router.post('/from-link', async (req, res) => {
+  const { marketplace, affiliateUrl } = req.body;
+  if (!marketplace || !affiliateUrl) {
+    return res.status(400).json({ message: 'Preencha marketplace e link de afiliado' });
+  }
+  const preview = await fetchLinkPreview(affiliateUrl);
+  const externalId = crypto.randomUUID();
+  const fingerprint = makeFingerprint(marketplace, externalId);
+  const product = await prisma.product.create({
+    data: {
+      externalId,
+      marketplace,
+      name: preview.title || `Produto ${marketplace} (editar nome e preco)`,
+      currentPrice: preview.price ?? 0,
+      imageUrl: preview.image || null,
+      originalUrl: affiliateUrl,
+      affiliateUrl,
+      isTest: false,
+      fingerprint,
+    },
+  });
+  await prisma.priceHistory.create({
+    data: { productId: product.id, price: product.currentPrice },
+  });
+  res.status(201).json({ product, foundTitle: !!preview.title, foundImage: !!preview.image, foundPrice: !!preview.price });
 });
 
 router.post('/manual', async (req, res) => {
