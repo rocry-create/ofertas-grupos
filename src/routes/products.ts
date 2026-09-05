@@ -43,11 +43,12 @@ function makeFingerprint(marketplace: string, externalId: string) {
 }
 
 router.get('/', async (req, res) => {
-  const { category, marketplace } = req.query;
+  const { category, marketplace, productType } = req.query;
   const products = await prisma.product.findMany({
     where: {
       category: category ? String(category) : undefined,
       marketplace: marketplace ? String(marketplace) : undefined,
+      productType: productType ? String(productType) : undefined,
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -96,7 +97,7 @@ router.post('/import-test', async (req, res) => {
 });
 
 router.patch('/:id', async (req, res) => {
-  const { name, category, currentPrice, affiliateUrl } = req.body;
+  const { name, category, currentPrice, affiliateUrl, imageUrl, description, stock, isActive } = req.body;
   const existing = await prisma.product.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ message: 'Produto nao encontrado' });
 
@@ -106,6 +107,10 @@ router.patch('/:id', async (req, res) => {
       name,
       category,
       affiliateUrl,
+      imageUrl,
+      description,
+      stock: stock !== undefined && stock !== null ? Number(stock) : undefined,
+      isActive: isActive !== undefined ? Boolean(isActive) : undefined,
       previousPrice: currentPrice !== undefined ? existing.currentPrice : undefined,
       currentPrice,
     },
@@ -164,7 +169,7 @@ router.post('/from-link', async (req, res) => {
 });
 
 router.post('/manual', async (req, res) => {
-  const { name, marketplace, currentPrice, previousPrice, affiliateUrl, imageUrl } = req.body;
+  const { name, marketplace, currentPrice, previousPrice, affiliateUrl, imageUrl, description, category, stock, isActive } = req.body;
   if (!name || !marketplace || currentPrice === undefined || !affiliateUrl) {
     return res.status(400).json({ message: 'Preencha nome, marketplace, preco atual e link de afiliado' });
   }
@@ -180,6 +185,11 @@ router.post('/manual', async (req, res) => {
       imageUrl: imageUrl || null,
       originalUrl: affiliateUrl,
       affiliateUrl,
+      description: description || null,
+      category: category || null,
+      stock: stock !== undefined && stock !== null ? Number(stock) : null,
+      isActive: isActive !== undefined ? Boolean(isActive) : true,
+      productType: 'store_product',
       isTest: false,
       fingerprint,
     },

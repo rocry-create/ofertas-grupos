@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Package, RefreshCw, Download, Store, Plus, X, Check } from "lucide-react";
+import { Package, RefreshCw, Download, Store, Plus, X } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 interface Product {
@@ -18,20 +18,6 @@ interface Product {
   description: string | null;
   stock: number | null;
   isActive: boolean;
-}
-
-interface BatchResult {
-  productId: string | null;
-  url: string;
-  name: string;
-  price: string;
-  imageUrl: string;
-  missingName: boolean;
-  missingPrice: boolean;
-  missingImage: boolean;
-  saved: boolean;
-  saving: boolean;
-  error: string;
 }
 
 const MARKETPLACES = [
@@ -92,7 +78,7 @@ export default function ProdutosPage() {
   const [typeFilter, setTypeFilter] = useState<string>("TODOS");
 
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addMode, setAddMode] = useState<"link" | "batch" | "manual">("link");
+  const [addMode, setAddMode] = useState<"link" | "manual">("link");
   const [addSubmitting, setAddSubmitting] = useState(false);
   const [addError, setAddError] = useState("");
 
@@ -108,13 +94,6 @@ export default function ProdutosPage() {
     price: false,
     image: false,
   });
-
-  // aba "Vários links (lote)"
-  const [batchMarketplace, setBatchMarketplace] = useState("TEMU");
-  const [batchLinksText, setBatchLinksText] = useState("");
-  const [batchSubmitting, setBatchSubmitting] = useState(false);
-  const [batchResults, setBatchResults] = useState<BatchResult[]>([]);
-  const [batchDone, setBatchDone] = useState(false);
 
   const [manualMarketplace, setManualMarketplace] = useState("MINHA_LOJA");
   const [manualName, setManualName] = useState("");
@@ -199,11 +178,6 @@ export default function ProdutosPage() {
     setAddImageUrl("");
     setAddMissing({ name: false, price: false, image: false });
 
-    setBatchMarketplace("TEMU");
-    setBatchLinksText("");
-    setBatchResults([]);
-    setBatchDone(false);
-
     setManualMarketplace("MINHA_LOJA");
     setManualName("");
     setManualDescription("");
@@ -287,100 +261,6 @@ export default function ProdutosPage() {
     }
   }
 
-  async function submitBatch() {
-    const links = batchLinksText
-      .split("\n")
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0);
-    if (links.length === 0) {
-      setAddError("Cole ao menos um link, um por linha");
-      return;
-    }
-    setAddError("");
-    setBatchSubmitting(true);
-    setBatchResults([]);
-    setBatchDone(false);
-    const results: BatchResult[] = [];
-    for (const url of links) {
-      try {
-        const data = await apiFetch("/products/from-link", {
-          method: "POST",
-          body: JSON.stringify({ marketplace: batchMarketplace, affiliateUrl: url }),
-        });
-        results.push({
-          productId: data.product.id,
-          url,
-          name: data.product.name,
-          price: String(data.product.currentPrice ?? ""),
-          imageUrl: data.product.imageUrl || "",
-          missingName: !data.foundTitle,
-          missingPrice: !data.foundPrice,
-          missingImage: !data.foundImage,
-          saved: !( !data.foundTitle || !data.foundPrice || !data.foundImage ),
-          saving: false,
-          error: "",
-        });
-      } catch (e) {
-        results.push({
-          productId: null,
-          url,
-          name: "",
-          price: "",
-          imageUrl: "",
-          missingName: false,
-          missingPrice: false,
-          missingImage: false,
-          saved: false,
-          saving: false,
-          error: e instanceof Error ? e.message : "Erro ao importar este link",
-        });
-      }
-      setBatchResults([...results]);
-    }
-    setBatchSubmitting(false);
-    setBatchDone(true);
-    loadProducts();
-  }
-
-  function updateBatchItem(index: number, patch: Partial<BatchResult>) {
-    setBatchResults((prev) => {
-      const copy = [...prev];
-      copy[index] = { ...copy[index], ...patch };
-      return copy;
-    });
-  }
-
-  async function saveBatchItem(index: number) {
-    const item = batchResults[index];
-    if (!item.productId) return;
-    if (item.missingName && !item.name.trim()) {
-      updateBatchItem(index, { error: "Preencha o título" });
-      return;
-    }
-    if (item.missingPrice && !item.price.trim()) {
-      updateBatchItem(index, { error: "Preencha o preço" });
-      return;
-    }
-    updateBatchItem(index, { saving: true, error: "" });
-    try {
-      const payload: Record<string, unknown> = {};
-      if (item.missingName) payload.name = item.name.trim();
-      if (item.missingPrice) payload.currentPrice = Number(item.price.replace(",", "."));
-      if (item.missingImage && item.imageUrl.trim()) payload.imageUrl = item.imageUrl.trim();
-      await apiFetch(`/products/${item.productId}`, {
-        method: "PATCH",
-        body: JSON.stringify(payload),
-      });
-      updateBatchItem(index, { saving: false, saved: true });
-      loadProducts();
-    } catch (e) {
-      updateBatchItem(index, {
-        saving: false,
-        error: e instanceof Error ? e.message : "Erro ao salvar",
-      });
-    }
-  }
-
   async function submitManual() {
     if (!manualName.trim()) {
       setAddError("Preencha o título do produto");
@@ -434,10 +314,6 @@ export default function ProdutosPage() {
     () => [{ key: "TODOS", label: "Início" }, ...MARKETPLACES_MANUAL],
     []
   );
-
-  const batchCompleteCount = batchResults.filter((r) => r.saved).length;
-  const batchPendingCount = batchResults.filter((r) => !r.saved && r.productId).length;
-  const batchErrorCount = batchResults.filter((r) => !r.productId && r.error).length;
 
   return (
     <div className="space-y-6">
@@ -610,7 +486,7 @@ export default function ProdutosPage() {
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-8 overflow-y-auto">
           <div className="w-full max-w-md rounded-xl bg-card border border-border shadow-lg my-auto max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border sticky top-0 bg-card z-10">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border sticky top-0 bg-card">
               <h2 className="text-base font-bold text-foreground">Adicionar Produto</h2>
               <button
                 onClick={closeAddModal}
@@ -620,39 +496,26 @@ export default function ProdutosPage() {
               </button>
             </div>
 
-            <div className="flex border-b border-border sticky top-[57px] bg-card z-10">
+            <div className="flex border-b border-border">
               <button
                 onClick={() => {
                   setAddMode("link");
                   setAddError("");
                 }}
-                className={`flex-1 text-xs font-medium py-2.5 px-1 transition-colors ${
+                className={`flex-1 text-sm font-medium py-2.5 transition-colors ${
                   addMode === "link"
                     ? "text-orange-500 border-b-2 border-orange-500"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                1 link
-              </button>
-              <button
-                onClick={() => {
-                  setAddMode("batch");
-                  setAddError("");
-                }}
-                className={`flex-1 text-xs font-medium py-2.5 px-1 transition-colors ${
-                  addMode === "batch"
-                    ? "text-orange-500 border-b-2 border-orange-500"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Vários links (lote)
+                Colar link (automático)
               </button>
               <button
                 onClick={() => {
                   setAddMode("manual");
                   setAddError("");
                 }}
-                className={`flex-1 text-xs font-medium py-2.5 px-1 transition-colors ${
+                className={`flex-1 text-sm font-medium py-2.5 transition-colors ${
                   addMode === "manual"
                     ? "text-orange-500 border-b-2 border-orange-500"
                     : "text-muted-foreground hover:text-foreground"
@@ -782,143 +645,6 @@ export default function ProdutosPage() {
                   >
                     {addSubmitting ? "Salvando..." : "Salvar Produto"}
                   </button>
-                </>
-              )}
-
-              {addMode === "batch" && (
-                <>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-muted-foreground">
-                      Plataforma (vale para todos os links abaixo)
-                    </label>
-                    <select
-                      value={batchMarketplace}
-                      onChange={(e) => setBatchMarketplace(e.target.value)}
-                      disabled={batchSubmitting}
-                      className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground"
-                    >
-                      {MARKETPLACES.map((m) => (
-                        <option key={m.key} value={m.key}>
-                          {m.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-muted-foreground">
-                      Links dos produtos (um por linha)
-                    </label>
-                    <textarea
-                      value={batchLinksText}
-                      onChange={(e) => setBatchLinksText(e.target.value)}
-                      disabled={batchSubmitting}
-                      placeholder={"https://...\nhttps://...\nhttps://..."}
-                      rows={6}
-                      className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground resize-none"
-                    />
-                    <p className="text-[11px] text-muted-foreground">
-                      Cole quantos links quiser, um em cada linha. O sistema processa todos e
-                      avisa quais precisam de complemento manual.
-                    </p>
-                  </div>
-                  {!batchDone && (
-                    <button
-                      onClick={submitBatch}
-                      disabled={batchSubmitting}
-                      className="w-full rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium py-2.5 transition-colors disabled:opacity-60"
-                    >
-                      {batchSubmitting
-                        ? `Processando... (${batchResults.length} de ${
-                            batchLinksText.split("\n").filter((l) => l.trim()).length
-                          })`
-                        : "Importar todos"}
-                    </button>
-                  )}
-
-                  {batchResults.length > 0 && (
-                    <div className="space-y-3 pt-2 border-t border-border">
-                      {batchDone && (
-                        <p className="text-xs text-muted-foreground">
-                          {batchCompleteCount} completo(s) automaticamente
-                          {batchPendingCount > 0 && `, ${batchPendingCount} precisam de complemento`}
-                          {batchErrorCount > 0 && `, ${batchErrorCount} com erro`}.
-                        </p>
-                      )}
-                      {batchResults.map((item, idx) => {
-                        if (item.saved) {
-                          return (
-                            <div
-                              key={idx}
-                              className="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-500/10 rounded-lg px-3 py-2"
-                            >
-                              <Check className="h-3.5 w-3.5 shrink-0" />
-                              <span className="line-clamp-1">{item.name || item.url}</span>
-                            </div>
-                          );
-                        }
-                        if (!item.productId) {
-                          return (
-                            <div
-                              key={idx}
-                              className="text-xs text-red-600 bg-red-500/10 rounded-lg px-3 py-2"
-                            >
-                              Falhou: {item.url}
-                              <br />
-                              {item.error}
-                            </div>
-                          );
-                        }
-                        return (
-                          <div
-                            key={idx}
-                            className="rounded-lg border border-border p-3 space-y-2"
-                          >
-                            <p className="text-[11px] text-muted-foreground line-clamp-1">
-                              {item.url}
-                            </p>
-                            {item.error && (
-                              <p className="text-xs text-red-500">{item.error}</p>
-                            )}
-                            {item.missingImage && (
-                              <input
-                                type="text"
-                                value={item.imageUrl}
-                                onChange={(e) => updateBatchItem(idx, { imageUrl: e.target.value })}
-                                placeholder="Link da foto"
-                                className="w-full rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-xs text-foreground"
-                              />
-                            )}
-                            {item.missingName && (
-                              <input
-                                type="text"
-                                value={item.name}
-                                onChange={(e) => updateBatchItem(idx, { name: e.target.value })}
-                                placeholder="Título do produto"
-                                className="w-full rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-xs text-foreground"
-                              />
-                            )}
-                            {item.missingPrice && (
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                value={item.price}
-                                onChange={(e) => updateBatchItem(idx, { price: e.target.value })}
-                                placeholder="Preço (R$)"
-                                className="w-full rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-xs text-foreground"
-                              />
-                            )}
-                            <button
-                              onClick={() => saveBatchItem(idx)}
-                              disabled={item.saving}
-                              className="w-full rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium py-1.5 transition-colors disabled:opacity-60"
-                            >
-                              {item.saving ? "Salvando..." : "Salvar este produto"}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
                 </>
               )}
 

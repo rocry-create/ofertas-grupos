@@ -41,6 +41,10 @@ model Product {
   affiliateUrl   String?
   commissionPct  Float?
   commissionValue Float?
+  description    String?
+  productType    String   @default("affiliate_product")
+  stock          Int?
+  isActive       Boolean  @default(true)
   isTest         Boolean  @default(true)
   fingerprint    String   @unique
   createdAt      DateTime @default(now())

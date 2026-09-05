@@ -13,7 +13,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://ofertas.allcepts.com
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@allcepts.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
