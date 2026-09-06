@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Flame } from "lucide-react";
-import { setToken } from "@/lib/api";
+import { setToken, setUser } from "@/lib/api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://ofertas.allcepts.com/api";
 
@@ -31,6 +31,7 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Erro ao entrar");
       setToken(data.access_token);
+      if (data.user) setUser(data.user);
       router.push("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao entrar");

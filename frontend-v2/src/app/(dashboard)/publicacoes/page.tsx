@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Send, RefreshCw } from "lucide-react";
+import { Send, RefreshCw, Trash2 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 interface Publication {
@@ -54,6 +54,18 @@ export default function PublicacoesPage() {
     }
   }
 
+  async function deleteAllPublications() {
+    const ok = window.confirm("Excluir TODAS as publicacoes?");
+    if (!ok) return;
+    try {
+      const data = await apiFetch("/publications/all/bulk", { method: "DELETE" });
+      setMsg(`${data.deleted} publicacao(oes) excluida(s)`);
+      loadPublications();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Erro ao excluir todas as publicacoes");
+    }
+  }
+
   useEffect(() => {
     loadPublications();
   }, []);
@@ -80,6 +92,15 @@ export default function PublicacoesPage() {
         <Button variant="outline" onClick={loadPublications} disabled={loading}>
           <RefreshCw className="h-4 w-4" />
           Atualizar lista
+        </Button>
+        <Button
+          variant="outline"
+          onClick={deleteAllPublications}
+          disabled={publications.length === 0}
+          className="border-red-500/50 text-red-500 hover:bg-red-500/10"
+        >
+          <Trash2 className="h-4 w-4" />
+          Excluir Todos
         </Button>
       </div>
 

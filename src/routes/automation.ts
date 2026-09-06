@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth';
-import { isAutomationEnabled, setAutomationEnabled, runShopeeScan } from '../services/scheduler';
+import { isAutomationEnabled, setAutomationEnabled, runShopeeScan, getAutomationSettings, setAutomationSettings } from '../services/scheduler';
+import { getPublicationLimits } from '../services/publicationLimiter';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -15,9 +16,11 @@ function startOfToday(): Date {
 
 router.get('/status', async (req, res) => {
   const enabled = await isAutomationEnabled();
+  const automationSettings = await getAutomationSettings();
+  const publicationLimits = await getPublicationLimits();
   const lastRunSetting = await prisma.setting.findUnique({ where: { key: 'AUTOMATION_LAST_RUN' } });
   const lastRunAt = lastRunSetting ? new Date(lastRunSetting.value) : null;
-  const nextRunAt = lastRunAt ? new Date(lastRunAt.getTime() + 60 * 60 * 1000) : null;
+  const nextRunAt = lastRunAt ? new Date(lastRunAt.getTime() + automationSettings.intervalMinutes * 60 * 1000) : null;
 
   const today = startOfToday();
   const [productsFoundToday, offersCreatedToday, publicationsSentToday, recentFailures] = await Promise.all([
@@ -39,6 +42,15 @@ router.get('/status', async (req, res) => {
     productsFoundToday,
     offersCreatedToday,
     publicationsSentToday,
+    settings: {
+      intervalMinutes: automationSettings.intervalMinutes,
+      minDiscountPct: automationSettings.minDiscountPct,
+      keywords: automationSettings.keywords,
+      maxPerDay: publicationLimits.maxPerDay,
+      hourStart: publicationLimits.hourStart,
+      hourEnd: publicationLimits.hourEnd,
+      intervalHoursBetweenPosts: publicationLimits.intervalHours,
+    },
     recentFailures: recentFailures.map((f) => ({
       id: f.id,
       productName: f.offer?.product?.name || '-',
@@ -58,5 +70,4 @@ router.post('/run-now', async (req, res) => {
   runShopeeScan().catch((err) => console.error('[automation] Erro ao executar manualmente:', err.message));
   res.json({ message: 'Execucao iniciada' });
 });
-
 export default router;

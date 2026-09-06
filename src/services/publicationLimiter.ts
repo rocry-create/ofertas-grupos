@@ -1,42 +1,37 @@
 import { PrismaClient } from '@prisma/client';
-
 const prisma = new PrismaClient();
-
 const DEFAULTS = {
-  PUBLICATION_MAX_PER_DAY: '5',
-  PUBLICATION_INTERVAL_HOURS: '3',
-  PUBLICATION_HOUR_START: '8',
+  PUBLICATION_MAX_PER_DAY: '999',
+  PUBLICATION_INTERVAL_HOURS: '2.17',
+  PUBLICATION_HOUR_START: '9',
   PUBLICATION_HOUR_END: '22',
+  PUBLICATION_BATCH_SIZE: '3',
 };
-
 async function getSetting(key: string): Promise<string> {
   const setting = await prisma.setting.findUnique({ where: { key } });
   return setting?.value || DEFAULTS[key as keyof typeof DEFAULTS];
 }
-
 export async function getPublicationLimits() {
-  const [maxPerDay, intervalHours, hourStart, hourEnd] = await Promise.all([
+  const [maxPerDay, intervalHours, hourStart, hourEnd, batchSize] = await Promise.all([
     getSetting('PUBLICATION_MAX_PER_DAY'),
     getSetting('PUBLICATION_INTERVAL_HOURS'),
     getSetting('PUBLICATION_HOUR_START'),
     getSetting('PUBLICATION_HOUR_END'),
+    getSetting('PUBLICATION_BATCH_SIZE'),
   ]);
   return {
     maxPerDay: Number(maxPerDay),
     intervalHours: Number(intervalHours),
     hourStart: Number(hourStart),
     hourEnd: Number(hourEnd),
+    batchSize: Number(batchSize),
   };
 }
-
 function startOfToday(): Date {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d;
 }
-
-// Conta quantas "rodadas" de publicacao (ofertas distintas) ja foram
-// enviadas ou enfileiradas hoje.
 export async function countPublicationRoundsToday(): Promise<number> {
   const offers = await prisma.publication.findMany({
     where: {
@@ -48,9 +43,6 @@ export async function countPublicationRoundsToday(): Promise<number> {
   });
   return offers.length;
 }
-
-// Verifica se um produto (pelo fingerprint) ja foi publicado com sucesso
-// nas ultimas 24 horas, para evitar repetir o mesmo produto.
 export async function wasProductPublishedRecently(productId: string): Promise<boolean> {
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const existing = await prisma.publication.findFirst({
@@ -62,37 +54,49 @@ export async function wasProductPublishedRecently(productId: string): Promise<bo
   });
   return !!existing;
 }
-
-// Calcula o proximo horario permitido para publicar, respeitando o
-// intervalo minimo entre publicacoes e a janela de horario permitido.
+// Calcula o horario do bloco atual. Enquanto o bloco nao tiver "batchSize"
+// ofertas, reaproveita o mesmo horario. Ao completar, avanca para o proximo bloco.
 export async function getNextAllowedSlot(): Promise<Date> {
   const limits = await getPublicationLimits();
-
-  const stored = await prisma.setting.findUnique({ where: { key: 'PUBLICATION_NEXT_SLOT' } });
-  let candidate = stored ? new Date(stored.value) : new Date();
   const now = new Date();
-  if (candidate < now) candidate = now;
 
-  const hour = candidate.getHours();
-  if (hour < limits.hourStart) {
-    candidate.setHours(limits.hourStart, 0, 0, 0);
-  } else if (hour >= limits.hourEnd) {
-    candidate.setDate(candidate.getDate() + 1);
-    candidate.setHours(limits.hourStart, 0, 0, 0);
+  const storedSlot = await prisma.setting.findUnique({ where: { key: 'PUBLICATION_CURRENT_SLOT' } });
+  const storedCount = await prisma.setting.findUnique({ where: { key: 'PUBLICATION_BATCH_COUNT' } });
+  let slot = storedSlot ? new Date(storedSlot.value) : new Date(0);
+  let count = storedCount ? Number(storedCount.value) : 0;
+
+  if (slot < now || count >= limits.batchSize) {
+    let base = slot < now ? new Date(now) : slot;
+    if (count >= limits.batchSize && slot >= now) {
+      base = new Date(slot.getTime() + limits.intervalHours * 60 * 60 * 1000);
+    }
+    const hour = base.getHours();
+    if (hour < limits.hourStart) {
+      base.setHours(limits.hourStart, 0, 0, 0);
+    } else if (hour >= limits.hourEnd) {
+      base.setDate(base.getDate() + 1);
+      base.setHours(limits.hourStart, 0, 0, 0);
+    }
+    slot = base;
+    count = 0;
   }
 
-  const nextSlot = new Date(candidate.getTime() + limits.intervalHours * 60 * 60 * 1000);
-  await prisma.setting.upsert({
-    where: { key: 'PUBLICATION_NEXT_SLOT' },
-    update: { value: nextSlot.toISOString() },
-    create: { key: 'PUBLICATION_NEXT_SLOT', value: nextSlot.toISOString() },
-  });
+  count++;
+  await Promise.all([
+    prisma.setting.upsert({
+      where: { key: 'PUBLICATION_CURRENT_SLOT' },
+      update: { value: slot.toISOString() },
+      create: { key: 'PUBLICATION_CURRENT_SLOT', value: slot.toISOString() },
+    }),
+    prisma.setting.upsert({
+      where: { key: 'PUBLICATION_BATCH_COUNT' },
+      update: { value: String(count) },
+      create: { key: 'PUBLICATION_BATCH_COUNT', value: String(count) },
+    }),
+  ]);
 
-  return candidate;
+  return slot;
 }
-
-// Verifica se ainda cabe mais uma rodada de publicacao hoje, considerando
-// o limite maximo diario configurado.
 export async function canPublishMoreToday(): Promise<boolean> {
   const limits = await getPublicationLimits();
   const countToday = await countPublicationRoundsToday();

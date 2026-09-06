@@ -1,3 +1,10 @@
+teste ok
+teste ok
+teste ok
+teste ok
+hello
+HELLO-TESTE-12345
+HELLO-TESTE-12345
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth';
@@ -34,7 +41,7 @@ router.get('/:id', async (req, res) => {
 
 // Gera ofertas automaticamente para produtos cujo preco atual caiu em relacao ao anterior
 router.post('/generate', async (req, res) => {
-  const { minDiscountPct = 5 } = req.body;
+  const { minDiscountPct = 10 } = req.body;
 
   const products = await prisma.product.findMany({
     where: { previousPrice: { not: null } },
@@ -125,3 +132,4 @@ router.delete('/all/bulk', async (req, res) => {
 });
 
 export default router;
+-rw-r--r-- 1 root root 4132 Sep  5 15:15 /opt/offer-whatsapp-platform/src/routes/offers.ts

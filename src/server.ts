@@ -13,6 +13,7 @@ import marketplacesRoutes from './routes/marketplaces';
 import dashboardRoutes from './routes/dashboard';
 import automationRoutes from './routes/automation';
 import whatsappStatusRoutes from './routes/whatsappStatus';
+import whatsappInstancesRoutes from './routes/whatsappInstances';
 import { startPublicationWorker } from './workers/publicationWorker';
 import { startScheduler } from './services/scheduler';
 import { startConnectionMonitor } from './services/connectionMonitor';
@@ -35,6 +36,7 @@ app.use('/api/marketplaces', marketplacesRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/automation', automationRoutes);
 app.use('/api/whatsapp', whatsappStatusRoutes);
+app.use('/api/whatsapp-instances', whatsappInstancesRoutes);
 
 app.use((err: any, req: any, res: any, next: any) => {
   console.error('[server] Erro nao tratado numa rota:', err && err.message || err);

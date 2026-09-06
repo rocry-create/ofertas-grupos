@@ -6,7 +6,7 @@ import { canPublishMoreToday, wasProductPublishedRecently, getNextAllowedSlot } 
 
 const prisma = new PrismaClient();
 
-const KEYWORDS = [
+const DEFAULT_KEYWORDS = [
   'fone de ouvido',
   'tenis esportivo',
   'panela',
@@ -18,7 +18,7 @@ const KEYWORDS = [
 ];
 
 let keywordIndex = 0;
-const MIN_DISCOUNT_PCT = 5;
+let scanTimer: NodeJS.Timeout | null = null;
 
 function makeFingerprint(marketplace: string, externalId: string) {
   return crypto.createHash('sha256').update(`${marketplace}:${externalId}`).digest('hex');
@@ -44,6 +44,47 @@ export async function setAutomationEnabled(enabled: boolean) {
   });
 }
 
+export async function getAutomationSettings() {
+  const rows = await prisma.setting.findMany({
+    where: { key: { in: ['AUTOMATION_INTERVAL_MINUTES', 'AUTOMATION_MIN_DISCOUNT_PCT', 'AUTOMATION_KEYWORDS'] } },
+  });
+  const map: Record<string, string> = {};
+  for (const r of rows) map[r.key] = r.value;
+  const intervalMinutes = map.AUTOMATION_INTERVAL_MINUTES ? Number(map.AUTOMATION_INTERVAL_MINUTES) : 60;
+  const minDiscountPct = map.AUTOMATION_MIN_DISCOUNT_PCT !== undefined ? Number(map.AUTOMATION_MIN_DISCOUNT_PCT) : 0;
+  const keywords = map.AUTOMATION_KEYWORDS
+    ? map.AUTOMATION_KEYWORDS.split(',').map((k) => k.trim()).filter(Boolean)
+    : DEFAULT_KEYWORDS;
+  return { intervalMinutes, minDiscountPct, keywords };
+}
+
+export async function setAutomationSettings(input: { intervalMinutes?: number; minDiscountPct?: number; keywords?: string[] }) {
+  const ops = [];
+  if (input.intervalMinutes !== undefined) {
+    ops.push(prisma.setting.upsert({
+      where: { key: 'AUTOMATION_INTERVAL_MINUTES' },
+      update: { value: String(input.intervalMinutes) },
+      create: { key: 'AUTOMATION_INTERVAL_MINUTES', value: String(input.intervalMinutes) },
+    }));
+  }
+  if (input.minDiscountPct !== undefined) {
+    ops.push(prisma.setting.upsert({
+      where: { key: 'AUTOMATION_MIN_DISCOUNT_PCT' },
+      update: { value: String(input.minDiscountPct) },
+      create: { key: 'AUTOMATION_MIN_DISCOUNT_PCT', value: String(input.minDiscountPct) },
+    }));
+  }
+  if (input.keywords !== undefined) {
+    ops.push(prisma.setting.upsert({
+      where: { key: 'AUTOMATION_KEYWORDS' },
+      update: { value: input.keywords.join(',') },
+      create: { key: 'AUTOMATION_KEYWORDS', value: input.keywords.join(',') },
+    }));
+  }
+  await Promise.all(ops);
+  scheduleNextScan();
+}
+
 async function recordLastRun() {
   await prisma.setting.upsert({
     where: { key: 'AUTOMATION_LAST_RUN' },
@@ -63,9 +104,11 @@ export async function runShopeeScan() {
 }
 
 async function runShopeeScanInternal() {
-  const keyword = KEYWORDS[keywordIndex % KEYWORDS.length];
+  const settings = await getAutomationSettings();
+  const keywords = settings.keywords.length > 0 ? settings.keywords : DEFAULT_KEYWORDS;
+  const keyword = keywords[keywordIndex % keywords.length];
   keywordIndex++;
-  console.log(`[scheduler] Buscando Shopee: ${keyword}`);
+  console.log(`[scheduler] Buscando Shopee: ${keyword} (desconto minimo: ${settings.minDiscountPct}%)`);
 
   try {
     const offers = await searchShopeeOffers(keyword, 10);
@@ -77,7 +120,7 @@ async function runShopeeScanInternal() {
       const discountRate = offer.priceDiscountRate || 0;
       const previousPrice = discountRate > 0 ? currentPrice / (1 - discountRate / 100) : null;
 
-      if (discountRate < MIN_DISCOUNT_PCT) continue;
+      if (discountRate < settings.minDiscountPct) continue;
 
       const product = await prisma.product.upsert({
         where: { fingerprint },
@@ -157,9 +200,23 @@ async function runShopeeScanInternal() {
   }
 }
 
+async function scheduleNextScan() {
+  if (scanTimer) {
+    clearTimeout(scanTimer);
+    scanTimer = null;
+  }
+  const settings = await getAutomationSettings();
+  const intervalMs = Math.max(1, settings.intervalMinutes) * 60 * 1000;
+  scanTimer = setTimeout(async () => {
+    await runShopeeScan();
+    scheduleNextScan();
+  }, intervalMs);
+}
+
 export function startScheduler() {
-  const intervalMs = 60 * 60 * 1000;
-  console.log(`[scheduler] Scanner automatico da Shopee iniciado (a cada 1 hora)`);
-  setTimeout(runShopeeScan, 15000);
-  setInterval(runShopeeScan, intervalMs);
+  console.log(`[scheduler] Scanner automatico da Shopee iniciado`);
+  setTimeout(async () => {
+    await runShopeeScan();
+    scheduleNextScan();
+  }, 15000);
 }

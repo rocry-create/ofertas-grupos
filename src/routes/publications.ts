@@ -63,4 +63,13 @@ router.post('/:offerId/enqueue', async (req, res) => {
   res.status(201).json({ enqueued: publications.length, publications });
 });
 
+router.delete('/all/bulk', async (req, res) => {
+  try {
+    const result = await prisma.publication.deleteMany({});
+    res.json({ success: true, deleted: result.count });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message || 'Erro ao excluir todas as publicacoes' });
+  }
+});
+
 export default router;

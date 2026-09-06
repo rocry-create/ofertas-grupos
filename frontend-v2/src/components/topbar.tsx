@@ -5,20 +5,21 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
   RefreshCw,
-  Search,
-  SlidersHorizontal,
   FileText,
-  Settings,
+  User,
   HelpCircle,
-  ClipboardList,
   LogOut,
   Circle,
   Sun,
   Moon,
 } from "lucide-react";
-import { clearToken } from "@/lib/api";
+import { clearToken, getUser, StoredUser } from "@/lib/api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://ofertas.allcepts.com/api";
+
+const roleLabel: Record<string, string> = {
+  ADMIN: "Administrador",
+};
 
 export function Topbar() {
   const router = useRouter();
@@ -26,8 +27,12 @@ export function Topbar() {
   const [mounted, setMounted] = useState(false);
   const [online, setOnline] = useState<boolean | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [user, setLocalUser] = useState<StoredUser | null>(null);
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMounted(true);
+    setLocalUser(getUser());
+  }, []);
 
   async function checkHealth() {
     try {
@@ -77,33 +82,30 @@ export function Topbar() {
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
             Atualizar Tudo
           </button>
-          <button className={navButtonClass}>
-            <Search className="h-4 w-4" />
-            Pesquisa Avançada
-          </button>
-          <button className={navButtonClass}>
-            <SlidersHorizontal className="h-4 w-4" />
-            Filtros Globais
-          </button>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <button className={navButtonClass}>
+          <button onClick={() => router.push("/relatorios")} className={navButtonClass}>
             <FileText className="h-4 w-4" />
-            Gerar Relatório
+            Relatórios
           </button>
-          <button className={navButtonClass}>
-            <Settings className="h-4 w-4" />
-            Configurações do Sistema
-          </button>
-          <button className={navButtonClass}>
+          <button onClick={() => router.push("/documentos")} className={navButtonClass}>
             <HelpCircle className="h-4 w-4" />
             Ajuda
           </button>
-          <button className={navButtonClass}>
-            <ClipboardList className="h-4 w-4" />
-            Log de Atividade
-          </button>
+
+          {user && (
+            <div className={navButtonClass + " cursor-default hover:bg-transparent hover:text-muted-foreground"}>
+              <User className="h-4 w-4" />
+              <span>
+                {user.name}
+                <span className="text-muted-foreground/70">
+                  {" "}
+                  · {roleLabel[user.role] || user.role}
+                </span>
+              </span>
+            </div>
+          )}
 
           <button onClick={toggleTheme} className={iconButtonClass} title="Alternar tema">
             {mounted && theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}

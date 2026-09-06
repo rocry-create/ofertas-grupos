@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Package, RefreshCw, Download, Store, Plus, X, Check } from "lucide-react";
+import { Package, RefreshCw, Store, Plus, X, Check, Trash2 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 interface Product {
@@ -182,6 +182,17 @@ export default function ProdutosPage() {
       loadProducts();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Erro ao excluir produto");
+    }
+  }
+
+  async function excluirTodos() {
+    if (!confirm("Tem certeza que deseja excluir TODOS os produtos? Essa acao nao pode ser desfeita.")) return;
+    try {
+      const data = await apiFetch("/products/all/bulk", { method: "DELETE" });
+      setMsg(`${data.deleted} produto(s) excluido(s)`);
+      loadProducts();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Erro ao excluir todos os produtos");
     }
   }
 
@@ -466,20 +477,20 @@ export default function ProdutosPage() {
           Adicionar Produto
         </button>
         <button
-          onClick={importTest}
-          disabled={importing}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border text-foreground text-sm font-medium px-4 py-2 hover:bg-secondary transition-colors disabled:opacity-60"
-        >
-          <Download className="h-4 w-4" />
-          {importing ? "Importando..." : "Importar produtos de teste"}
-        </button>
-        <button
           onClick={loadProducts}
           disabled={loading}
           className="inline-flex items-center gap-1.5 rounded-lg border border-border text-foreground text-sm font-medium px-4 py-2 hover:bg-secondary transition-colors disabled:opacity-60"
         >
           <RefreshCw className="h-4 w-4" />
           Atualizar lista
+        </button>
+        <button
+          onClick={excluirTodos}
+          disabled={products.length === 0}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/50 text-red-500 text-sm font-medium px-4 py-2 hover:bg-red-500/10 transition-colors disabled:opacity-60"
+        >
+          <Trash2 className="h-4 w-4" />
+          Excluir Todos
         </button>
       </div>
 

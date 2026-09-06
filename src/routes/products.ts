@@ -200,4 +200,16 @@ router.post('/manual', async (req, res) => {
   res.status(201).json(product);
 });
 
+router.delete('/all/bulk', async (req, res) => {
+  try {
+    await prisma.publication.deleteMany({});
+    await prisma.offer.deleteMany({});
+    await prisma.priceHistory.deleteMany({});
+    const result = await prisma.product.deleteMany({});
+    res.json({ success: true, deleted: result.count });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message || 'Erro ao excluir todos os produtos' });
+  }
+});
+
 export default router;

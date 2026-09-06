@@ -15,7 +15,7 @@ router.post('/login', async (req, res) => {
   if (!valid) return res.status(401).json({ message: 'E-mail ou senha invalidos' });
 
   const token = jwt.sign({ sub: user.id, email: user.email }, process.env.JWT_SECRET!, { expiresIn: '8h' });
-  res.json({ access_token: token, user: { id: user.id, name: user.name, email: user.email } });
+  res.json({ access_token: token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
 });
 
 export default router;

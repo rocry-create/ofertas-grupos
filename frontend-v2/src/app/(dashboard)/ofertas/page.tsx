@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Tag, RefreshCw, Sparkles, Send, Package } from "lucide-react";
+import { Tag, RefreshCw, Sparkles, Send, Package, Trash2 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 interface Offer {
@@ -100,6 +100,18 @@ export default function OfertasPage() {
     }
   }
 
+  async function deleteAllOffers() {
+    const ok = window.confirm("Excluir TODAS as ofertas?");
+    if (!ok) return;
+    try {
+      const data = await apiFetch("/offers/all/bulk", { method: "DELETE" });
+      setMsg(`${data.deleted} oferta(s) excluida(s)`);
+      loadOffers();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Erro ao excluir todas as ofertas");
+    }
+  }
+
   async function publishOffer(id: string) {
     setBusy(id);
     try {
@@ -154,6 +166,14 @@ export default function OfertasPage() {
         >
           <RefreshCw className="h-4 w-4" />
           Atualizar lista
+        </button>
+        <button
+          onClick={deleteAllOffers}
+          disabled={offers.length === 0}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/50 text-red-500 text-sm font-medium px-4 py-2 hover:bg-red-500/10 transition-colors disabled:opacity-60"
+        >
+          <Trash2 className="h-4 w-4" />
+          Excluir Todos
         </button>
       </div>
 
