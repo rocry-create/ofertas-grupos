@@ -24,6 +24,7 @@ interface MarketplaceInfo {
   fields: KeyField[];
   automatic: boolean;
   note: string;
+  anyOf?: boolean;
 }
 
 const marketplaces: MarketplaceInfo[] = [
@@ -57,6 +58,7 @@ const marketplaces: MarketplaceInfo[] = [
   },
   {
     name: "Magalu / Casas Bahia / Kabum",
+    anyOf: true,
     fields: [
       { key: "AWIN_API_TOKEN", label: "Awin API Token" },
       { key: "LOMADEE_APP_TOKEN", label: "Lomadee App Token" },
@@ -127,8 +129,9 @@ export default function MarketplacesPage() {
     }
   }
 
-  function isConfigured(fields: KeyField[]) {
+  function isConfigured(fields: KeyField[], anyOf?: boolean) {
     if (fields.length === 0) return false;
+    if (anyOf) return fields.some((f) => settings.find((s) => s.key === f.key)?.configured);
     return fields.every((f) => settings.find((s) => s.key === f.key)?.configured);
   }
 
@@ -255,7 +258,7 @@ export default function MarketplacesPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {marketplaces.map((m) => {
-          const configured = isConfigured(m.fields);
+          const configured = isConfigured(m.fields, (m as any).anyOf);
           return (
             <Card key={m.name} className="border-border">
               <CardContent className="space-y-3">
