@@ -70,4 +70,32 @@ router.post('/run-now', async (req, res) => {
   runShopeeScan().catch((err) => console.error('[automation] Erro ao executar manualmente:', err.message));
   res.json({ message: 'Execucao iniciada' });
 });
+router.post('/settings', async (req, res) => {
+  try {
+    const { intervalMinutes, minDiscountPct, keywords, maxPerDay, hourStart, hourEnd, intervalHoursBetweenPosts } = req.body;
+    await setAutomationSettings({
+      intervalMinutes: intervalMinutes !== undefined ? Number(intervalMinutes) : undefined,
+      minDiscountPct: minDiscountPct !== undefined ? Number(minDiscountPct) : undefined,
+      keywords: Array.isArray(keywords) ? keywords : undefined,
+    });
+    const publicationOps = [];
+    if (maxPerDay !== undefined) {
+      publicationOps.push(prisma.setting.upsert({ where: { key: 'PUBLICATION_MAX_PER_DAY' }, update: { value: String(maxPerDay) }, create: { key: 'PUBLICATION_MAX_PER_DAY', value: String(maxPerDay) } }));
+    }
+    if (hourStart !== undefined) {
+      publicationOps.push(prisma.setting.upsert({ where: { key: 'PUBLICATION_HOUR_START' }, update: { value: String(hourStart) }, create: { key: 'PUBLICATION_HOUR_START', value: String(hourStart) } }));
+    }
+    if (hourEnd !== undefined) {
+      publicationOps.push(prisma.setting.upsert({ where: { key: 'PUBLICATION_HOUR_END' }, update: { value: String(hourEnd) }, create: { key: 'PUBLICATION_HOUR_END', value: String(hourEnd) } }));
+    }
+    if (intervalHoursBetweenPosts !== undefined) {
+      publicationOps.push(prisma.setting.upsert({ where: { key: 'PUBLICATION_INTERVAL_HOURS' }, update: { value: String(intervalHoursBetweenPosts) }, create: { key: 'PUBLICATION_INTERVAL_HOURS', value: String(intervalHoursBetweenPosts) } }));
+    }
+    await Promise.all(publicationOps);
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message || 'Erro ao salvar configuracoes' });
+  }
+});
+
 export default router;

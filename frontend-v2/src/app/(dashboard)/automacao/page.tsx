@@ -1,13 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Zap, Play, Pause, RefreshCw, AlertCircle } from "lucide-react";
+import { Zap, Play, Pause, RefreshCw, AlertCircle, Settings, Save } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 interface WhatsappStatus {
   connected: boolean;
   lastCheck: string | null;
   lastDrop: string | null;
+}
+
+interface AutomationSettingsData {
+  intervalMinutes: number;
+  minDiscountPct: number;
+  keywords: string[];
+  maxPerDay: number;
+  hourStart: number;
+  hourEnd: number;
+  intervalHoursBetweenPosts: number;
 }
 
 interface AutomationStatus {
@@ -17,6 +27,7 @@ interface AutomationStatus {
   productsFoundToday: number;
   offersCreatedToday: number;
   publicationsSentToday: number;
+  settings: AutomationSettingsData;
   recentFailures: { id: string; productName: string; errorMessage: string | null; createdAt: string }[];
 }
 
@@ -33,15 +44,59 @@ export default function AutomacaoPage() {
   const [running, setRunning] = useState(false);
   const [msg, setMsg] = useState("");
 
+  const [intervalMinutes, setIntervalMinutes] = useState("60");
+  const [minDiscountPct, setMinDiscountPct] = useState("0");
+  const [keywordsText, setKeywordsText] = useState("");
+  const [maxPerDay, setMaxPerDay] = useState("6");
+  const [hourStart, setHourStart] = useState("8");
+  const [hourEnd, setHourEnd] = useState("22");
+  const [intervalHoursBetweenPosts, setIntervalHoursBetweenPosts] = useState("2");
+  const [savingSettings, setSavingSettings] = useState(false);
+
   async function loadStatus() {
     setLoading(true);
     try {
       const data = await apiFetch("/automation/status");
       setStatus(data);
+      if (data.settings) {
+        setIntervalMinutes(String(data.settings.intervalMinutes));
+        setMinDiscountPct(String(data.settings.minDiscountPct));
+        setKeywordsText(data.settings.keywords.join(", "));
+        setMaxPerDay(String(data.settings.maxPerDay));
+        setHourStart(String(data.settings.hourStart));
+        setHourEnd(String(data.settings.hourEnd));
+        setIntervalHoursBetweenPosts(String(data.settings.intervalHoursBetweenPosts));
+      }
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Erro ao carregar status");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function saveSettings() {
+    setSavingSettings(true);
+    setMsg("");
+    try {
+      const keywords = keywordsText.split(",").map((k) => k.trim()).filter(Boolean);
+      await apiFetch("/automation/settings", {
+        method: "POST",
+        body: JSON.stringify({
+          intervalMinutes: Number(intervalMinutes),
+          minDiscountPct: Number(minDiscountPct),
+          keywords,
+          maxPerDay: Number(maxPerDay),
+          hourStart: Number(hourStart),
+          hourEnd: Number(hourEnd),
+          intervalHoursBetweenPosts: Number(intervalHoursBetweenPosts),
+        }),
+      });
+      setMsg("Configuracoes salvas com sucesso");
+      loadStatus();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Erro ao salvar configuracoes");
+    } finally {
+      setSavingSettings(false);
     }
   }
 
@@ -183,6 +238,112 @@ export default function AutomacaoPage() {
                 ))}
               </div>
             )}
+          </div>
+
+          <div className="rounded-xl border border-border bg-card shadow-sm p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <Settings className="h-4 w-4 text-orange-500" />
+              <div className="text-sm font-semibold text-foreground">Configuracoes da automacao</div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Buscar a cada (minutos)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={intervalMinutes}
+                  onChange={(e) => setIntervalMinutes(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Desconto minimo para virar oferta (%)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={minDiscountPct}
+                  onChange={(e) => setMinDiscountPct(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Maximo de publicacoes por dia
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={maxPerDay}
+                  onChange={(e) => setMaxPerDay(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Intervalo entre publicacoes (horas)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={intervalHoursBetweenPosts}
+                  onChange={(e) => setIntervalHoursBetweenPosts(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Horario inicial (0-23)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="23"
+                  value={hourStart}
+                  onChange={(e) => setHourStart(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Horario final (0-23)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="23"
+                  value={hourEnd}
+                  onChange={(e) => setHourEnd(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">
+                Palavras-chave de busca (separadas por virgula)
+              </label>
+              <textarea
+                value={keywordsText}
+                onChange={(e) => setKeywordsText(e.target.value)}
+                rows={2}
+                className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground resize-none"
+              />
+            </div>
+
+            <button
+              onClick={saveSettings}
+              disabled={savingSettings}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 transition-colors disabled:opacity-60"
+            >
+              <Save className="h-4 w-4" />
+              {savingSettings ? "Salvando..." : "Salvar configuracoes"}
+            </button>
           </div>
         </>
       ) : (

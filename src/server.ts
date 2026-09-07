@@ -17,6 +17,7 @@ import whatsappInstancesRoutes from './routes/whatsappInstances';
 import { startPublicationWorker } from './workers/publicationWorker';
 import { startScheduler } from './services/scheduler';
 import { startConnectionMonitor } from './services/connectionMonitor';
+import { promotePendingOffers } from './services/autoOffer';
 
 const app = express();
 app.use(cors());
@@ -59,4 +60,7 @@ app.listen(PORT, () => {
   startPublicationWorker();
   startScheduler();
   startConnectionMonitor();
+  setInterval(() => {
+    promotePendingOffers().catch((err) => console.error('[autoOffer] Erro ao promover pendentes:', err.message));
+  }, 5 * 60 * 1000);
 });

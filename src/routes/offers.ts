@@ -9,8 +9,12 @@ router.use(authenticate);
 function buildMessage(product: { name: string; currentPrice: number; previousPrice: number | null; affiliateUrl: string | null; originalUrl: string }, discountPct: number) {
   const link = product.affiliateUrl || product.originalUrl;
   const priceStr = product.currentPrice.toFixed(2).replace('.', ',');
-  const oldPriceStr = product.previousPrice ? product.previousPrice.toFixed(2).replace('.', ',') : '';
-  return `🔥 OFERTA! ${product.name}\n\nDe R$ ${oldPriceStr} por R$ ${priceStr} (${discountPct}% OFF)\n\n${link}`;
+  const temDescontoReal = product.previousPrice && product.previousPrice > product.currentPrice && discountPct > 0;
+  if (temDescontoReal) {
+    const oldPriceStr = product.previousPrice!.toFixed(2).replace('.', ',');
+    return `🔥 OFERTA! ${product.name}\n\nDe R$ ${oldPriceStr} por R$ ${priceStr} (${discountPct}% OFF)\n\n${link}`;
+  }
+  return `🔥 OFERTA! ${product.name}\n\nPor apenas R$ ${priceStr}\n\n${link}`;
 }
 
 router.get('/', async (req, res) => {

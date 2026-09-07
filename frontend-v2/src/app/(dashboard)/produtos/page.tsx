@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Package, RefreshCw, Store, Plus, X, Check, Trash2 } from "lucide-react";
+import { Package, RefreshCw, Store, Plus, X, Check, Trash2, Pencil } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 interface Product {
@@ -90,6 +90,11 @@ export default function ProdutosPage() {
   const [marketplaceFilter, setMarketplaceFilter] = useState<string>("TODOS");
   const [categoryFilter, setCategoryFilter] = useState<string>("TODAS");
   const [typeFilter, setTypeFilter] = useState<string>("TODOS");
+
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editPrice, setEditPrice] = useState("");
+  const [editPreviousPrice, setEditPreviousPrice] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [addMode, setAddMode] = useState<"link" | "batch" | "manual">("link");
@@ -182,6 +187,42 @@ export default function ProdutosPage() {
       loadProducts();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Erro ao excluir produto");
+    }
+  }
+
+  function openEditModal(product: Product) {
+    setEditingProduct(product);
+    setEditPrice(String(product.currentPrice));
+    setEditPreviousPrice(product.previousPrice !== null && product.previousPrice !== undefined ? String(product.previousPrice) : "");
+  }
+
+  function closeEditModal() {
+    setEditingProduct(null);
+  }
+
+  async function saveEdit() {
+    if (!editingProduct) return;
+    setEditSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        currentPrice: Number(editPrice.replace(",", ".")),
+      };
+      if (editPreviousPrice.trim()) {
+        payload.previousPrice = Number(editPreviousPrice.replace(",", "."));
+      } else {
+        payload.previousPrice = null;
+      }
+      await apiFetch(`/products/${editingProduct.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+      setMsg("Produto atualizado com sucesso");
+      closeEditModal();
+      loadProducts();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Erro ao atualizar produto");
+    } finally {
+      setEditSaving(false);
     }
   }
 
@@ -280,7 +321,7 @@ export default function ProdutosPage() {
     setAddSubmitting(true);
     setAddError("");
     try {
-      const payload: Record<string, unknown> = {};
+      const payload: Record<string, unknown> = { autoPublish: true };
       if (addMissing.name) payload.name = addName.trim();
       if (addMissing.price) payload.currentPrice = Number(addPrice.replace(",", "."));
       if (addMissing.image && addImageUrl.trim()) payload.imageUrl = addImageUrl.trim();
@@ -374,7 +415,7 @@ export default function ProdutosPage() {
     }
     updateBatchItem(index, { saving: true, error: "" });
     try {
-      const payload: Record<string, unknown> = {};
+      const payload: Record<string, unknown> = { autoPublish: true };
       if (item.missingName) payload.name = item.name.trim();
       if (item.missingPrice) payload.currentPrice = Number(item.price.replace(",", "."));
       if (item.missingImage && item.imageUrl.trim()) payload.imageUrl = item.imageUrl.trim();
@@ -604,6 +645,13 @@ export default function ProdutosPage() {
                     className="flex-1 inline-flex items-center justify-center rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium py-2 transition-colors disabled:opacity-60"
                   >
                     {divulgando === p.id ? "Enviando..." : "Publicar"}
+                  </button>
+                  <button
+                    onClick={() => openEditModal(p)}
+                    className="inline-flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground text-xs font-medium px-3 py-2 transition-colors"
+                    title="Editar preco"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
                   </button>
                   <button
                     onClick={() => excluir(p.id)}
@@ -1089,6 +1137,57 @@ export default function ProdutosPage() {
                   </button>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-8 overflow-y-auto">
+          <div className="w-full max-w-sm rounded-xl bg-card border border-border shadow-lg my-auto">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className="text-base font-bold text-foreground">Editar preco</h2>
+              <button
+                onClick={closeEditModal}
+                className="text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-secondary transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              <p className="text-sm font-medium text-foreground line-clamp-2">{editingProduct.name}</p>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Preco atual (R$)
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={editPrice}
+                  onChange={(e) => setEditPrice(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Preco antigo / De (opcional, usado para calcular o desconto)
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={editPreviousPrice}
+                  onChange={(e) => setEditPreviousPrice(e.target.value)}
+                  placeholder="Deixe em branco se nao houver desconto"
+                  className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground"
+                />
+              </div>
+              <button
+                onClick={saveEdit}
+                disabled={editSaving}
+                className="w-full rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium py-2.5 transition-colors disabled:opacity-60"
+              >
+                {editSaving ? "Salvando..." : "Salvar"}
+              </button>
             </div>
           </div>
         </div>

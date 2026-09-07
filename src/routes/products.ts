@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import crypto from 'crypto';
 import { authenticate } from '../middleware/auth';
 import { generateTestProducts } from '../providers/testProvider';
+import { autoCreateAndQueueOffer } from '../services/autoOffer';
 
 function extractMeta(html: string, property: string): string | null {
   const patterns = [
@@ -97,9 +98,13 @@ router.post('/import-test', async (req, res) => {
 });
 
 router.patch('/:id', async (req, res) => {
-  const { name, category, currentPrice, affiliateUrl, imageUrl, description, stock, isActive } = req.body;
+  const { name, category, currentPrice, previousPrice, affiliateUrl, imageUrl, description, stock, isActive, autoPublish } = req.body;
   const existing = await prisma.product.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ message: 'Produto nao encontrado' });
+
+  const previousPriceToSave = previousPrice !== undefined
+    ? (previousPrice === null ? null : Number(previousPrice))
+    : (currentPrice !== undefined ? existing.currentPrice : undefined);
 
   const product = await prisma.product.update({
     where: { id: req.params.id },
@@ -111,7 +116,7 @@ router.patch('/:id', async (req, res) => {
       description,
       stock: stock !== undefined && stock !== null ? Number(stock) : undefined,
       isActive: isActive !== undefined ? Boolean(isActive) : undefined,
-      previousPrice: currentPrice !== undefined ? existing.currentPrice : undefined,
+      previousPrice: previousPriceToSave,
       currentPrice,
     },
   });
@@ -120,6 +125,9 @@ router.patch('/:id', async (req, res) => {
     await prisma.priceHistory.create({
       data: { productId: product.id, price: currentPrice },
     });
+  }
+  if (autoPublish) {
+    autoCreateAndQueueOffer(product.id).catch((err) => console.error("[products] Erro ao auto-publicar produto:", err.message));
   }
 
   res.json(product);
@@ -165,6 +173,10 @@ router.post('/from-link', async (req, res) => {
   await prisma.priceHistory.create({
     data: { productId: product.id, price: product.currentPrice },
   });
+  const completo = !!preview.title && !!preview.image && !!preview.price;
+  if (completo) {
+    autoCreateAndQueueOffer(product.id).catch((err) => console.error('[products] Erro ao auto-publicar produto:', err.message));
+  }
   res.status(201).json({ product, foundTitle: !!preview.title, foundImage: !!preview.image, foundPrice: !!preview.price });
 });
 
@@ -197,6 +209,7 @@ router.post('/manual', async (req, res) => {
   await prisma.priceHistory.create({
     data: { productId: product.id, price: product.currentPrice },
   });
+  autoCreateAndQueueOffer(product.id).catch((err) => console.error("[products] Erro ao auto-publicar produto:", err.message));
   res.status(201).json(product);
 });
 
