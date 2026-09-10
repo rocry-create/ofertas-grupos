@@ -46,7 +46,7 @@ export default function WhatsappPage() {
     setMsg("");
     try {
       const data = await apiFetch("/groups/available");
-      setAvailable(data.slice(0, 30));
+      setAvailable(data);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Erro ao buscar grupos no WhatsApp");
     } finally {

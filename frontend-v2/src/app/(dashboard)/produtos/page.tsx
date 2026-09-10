@@ -107,6 +107,7 @@ export default function ProdutosPage() {
   const [addProductId, setAddProductId] = useState<string | null>(null);
   const [addName, setAddName] = useState("");
   const [addPrice, setAddPrice] = useState("");
+  const [addPreviousPrice, setAddPreviousPrice] = useState("");
   const [addImageUrl, setAddImageUrl] = useState("");
   const [addMissing, setAddMissing] = useState<{ name: boolean; price: boolean; image: boolean }>({
     name: false,
@@ -324,6 +325,7 @@ export default function ProdutosPage() {
       const payload: Record<string, unknown> = { autoPublish: true };
       if (addMissing.name) payload.name = addName.trim();
       if (addMissing.price) payload.currentPrice = Number(addPrice.replace(",", "."));
+      if (addPreviousPrice.trim()) payload.previousPrice = Number(addPreviousPrice.replace(",", "."));
       if (addMissing.image && addImageUrl.trim()) payload.imageUrl = addImageUrl.trim();
       await apiFetch(`/products/${addProductId}`, {
         method: "PATCH",
@@ -834,6 +836,19 @@ export default function ProdutosPage() {
                       />
                     </div>
                   )}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">
+                      Preço antigo / de antes (R$) — opcional, mas necessario para calcular desconto
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={addPreviousPrice}
+                      onChange={(e) => setAddPreviousPrice(e.target.value)}
+                      placeholder="Ex: 149,90"
+                      className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground"
+                    />
+                  </div>
                   <button
                     onClick={submitComplete}
                     disabled={addSubmitting}
